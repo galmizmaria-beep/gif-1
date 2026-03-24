@@ -3,181 +3,428 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Видео в прозрачную GIF для Genially</title>
-    <!-- Подключаем библиотеку для создания GIF прямо в браузере -->
+    <title>Scret of Cdhuhu - Video to GIF</title>
+    <!-- Библиотека для GIF -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/gifshot/0.3.2/gifshot.min.js"></script>
     <style>
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f0f2f5; margin: 0; padding: 20px; color: #333; }
-        .container { max-width: 700px; margin: 0 auto; background: white; padding: 25px; border-radius: 12px; box-shadow: 0 5px 15px rgba(0,0,0,0.05); }
-        h2 { text-align: center; color: #2c3e50; }
-        .step { margin-bottom: 25px; padding: 15px; border-radius: 8px; background: #fafafa; border: 1px solid #eee; }
-        input[type="file"] { display: block; margin-top: 10px; }
-        .slider-container { margin-top: 15px; }
-        button { background: #007bff; color: white; border: none; padding: 12px 20px; border-radius: 6px; cursor: pointer; font-size: 16px; font-weight: bold; width: 100%; transition: 0.2s; }
-        button:hover { background: #0056b3; }
-        button:disabled { background: #ccc; cursor: not-allowed; }
-        #status { text-align: center; margin-top: 10px; font-weight: bold; color: #ff8c00; display: none; }
-        textarea { width: 100%; height: 120px; margin-top: 10px; border-radius: 6px; border: 1px solid #ccc; padding: 10px; font-family: monospace; font-size: 12px; resize: vertical; box-sizing: border-box;}
-        .preview-area { text-align: center; margin-top: 15px; background: url('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAoAAAAKCAYAAACNMs+9AAAAOklEQVQYV2NkYGAwYcANmMgTjP///yMwMSx//x7D8B1DAzIluMyiSgGGRmRKYIqjkUUj0x2MgvEwEABiYxoR3t7X6QAAAABJRU5ErkJggg=='); border-radius: 8px; border: 1px solid #ddd; min-height: 150px; display: flex; align-items: center; justify-content: center; overflow: hidden;}
-        #gifResult { max-width: 100%; }
-        .alert { font-size: 12px; color: #666; margin-top: 5px; }
+        /* Основной мистический/космический стиль */
+        @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@600&family=Jost:wght@300;400;500&display=swap');
+
+        body {
+            margin: 0;
+            padding: 0;
+            background: #0f0518; /* Темно-фиолетовый фон */
+            background-image: radial-gradient(circle at 10% 20%, rgba(67, 24, 107, 0.4) 0%, transparent 40%),
+                              radial-gradient(circle at 90% 80%, rgba(93, 31, 148, 0.3) 0%, transparent 40%);
+            color: #e0d5ed;
+            font-family: 'Jost', sans-serif;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .app-container {
+            width: 90%;
+            max-width: 1100px;
+            display: grid;
+            grid-template-columns: 1fr 1.5fr;
+            gap: 30px;
+            padding: 40px;
+            background: rgba(32, 14, 55, 0.5);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            border: 1px solid rgba(138, 75, 206, 0.3);
+            box-shadow: 0 0 40px rgba(67, 24, 107, 0.6);
+        }
+
+        h1 {
+            grid-column: 1 / -1;
+            text-align: center;
+            font-family: 'Cinzel', serif;
+            font-size: 2.5rem;
+            margin-top: 0;
+            margin-bottom: 20px;
+            text-shadow: 0 0 15px rgba(183, 102, 255, 0.8);
+            letter-spacing: 2px;
+        }
+
+        /* Левая панель - Управление */
+        .left-panel {
+            display: flex;
+            flex-direction: column;
+            gap: 25px;
+        }
+
+        .panel-box {
+            background: rgba(20, 8, 38, 0.7);
+            padding: 25px;
+            border-radius: 15px;
+            border: 1px solid rgba(138, 75, 206, 0.2);
+        }
+
+        /* Стилизация загрузки */
+        .upload-wrapper {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .btn-upload {
+            background: linear-gradient(135deg, #a64dff, #6b21a8);
+            color: #fff;
+            padding: 12px 25px;
+            border-radius: 30px;
+            cursor: pointer;
+            font-weight: 500;
+            text-transform: uppercase;
+            font-size: 14px;
+            letter-spacing: 1px;
+            box-shadow: 0 0 15px rgba(166, 77, 255, 0.4);
+            transition: 0.3s;
+            display: inline-block;
+        }
+
+        .btn-upload:hover { box-shadow: 0 0 25px rgba(166, 77, 255, 0.8); transform: scale(1.05); }
+        input[type="file"] { display: none; }
+        
+        #checkIcon {
+            color: #4ade80;
+            font-size: 24px;
+            opacity: 0;
+            transform: scale(0);
+            transition: 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+        #checkIcon.visible { opacity: 1; transform: scale(1); }
+
+        /* Ползунок */
+        .slider-container label { display: block; margin-bottom: 10px; font-size: 15px; color: #cba4f0; }
+        input[type="range"] {
+            -webkit-appearance: none;
+            width: 100%;
+            height: 6px;
+            background: rgba(138, 75, 206, 0.3);
+            border-radius: 5px;
+            outline: none;
+        }
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: #d8b4fe;
+            box-shadow: 0 0 10px #d8b4fe;
+            cursor: pointer;
+        }
+
+        /* Правая панель - Предпросмотр и Действия */
+        .right-panel {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        /* Окно предпросмотра */
+        .preview-box {
+            position: relative;
+            background: #000;
+            border-radius: 15px;
+            border: 2px solid rgba(183, 102, 255, 0.5);
+            box-shadow: inset 0 0 30px rgba(183, 102, 255, 0.2), 0 0 20px rgba(183, 102, 255, 0.1);
+            height: 300px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            /* Фон-шахматка для прозрачности */
+            background-image: linear-gradient(45deg, #1a0b2e 25%, transparent 25%), linear-gradient(-45deg, #1a0b2e 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #1a0b2e 75%), linear-gradient(-45deg, transparent 75%, #1a0b2e 75%);
+            background-size: 20px 20px;
+            background-position: 0 0, 0 10px, 10px -10px, -10px 0px;
+        }
+
+        /* Канвас для живого предпросмотра */
+        #liveCanvas { max-width: 100%; max-height: 100%; z-index: 2; position: absolute; }
+        /* Итоговая гифка */
+        #finalGif { max-width: 100%; max-height: 100%; z-index: 3; position: absolute; display: none; }
+        
+        .empty-text { position: absolute; color: rgba(203, 164, 240, 0.5); z-index: 1; font-style: italic; }
+
+        /* Опции (переключатели) */
+        .options-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+        }
+
+        .btn-option {
+            background: rgba(138, 75, 206, 0.1);
+            border: 1px solid rgba(138, 75, 206, 0.4);
+            color: #d8b4fe;
+            padding: 10px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-family: inherit;
+            font-size: 13px;
+            transition: 0.3s;
+        }
+        .btn-option:hover { background: rgba(138, 75, 206, 0.3); }
+        .btn-option.active { background: rgba(183, 102, 255, 0.5); border-color: #d8b4fe; box-shadow: 0 0 10px rgba(183, 102, 255, 0.5); color: #fff;}
+
+        /* Главные кнопки */
+        .btn-main {
+            background: linear-gradient(90deg, #d946ef, #8b5cf6);
+            border: none;
+            color: white;
+            padding: 15px;
+            font-size: 16px;
+            border-radius: 10px;
+            cursor: pointer;
+            text-transform: uppercase;
+            font-weight: bold;
+            box-shadow: 0 0 20px rgba(217, 70, 239, 0.4);
+            transition: 0.3s;
+            margin-top: 10px;
+        }
+        .btn-main:hover { filter: brightness(1.2); box-shadow: 0 0 30px rgba(217, 70, 239, 0.7); }
+        .btn-main:disabled { background: #4b365e; color: #888; cursor: not-allowed; box-shadow: none; }
+
+        .btn-copy {
+            background: #10b981; /* Зеленоватый для успеха */
+            box-shadow: 0 0 20px rgba(16, 185, 129, 0.4);
+            display: none; /* Скрыта до готовности */
+        }
+        .btn-copy:hover { box-shadow: 0 0 30px rgba(16, 185, 129, 0.7); }
+
+        #processStatus { text-align: center; color: #fbbf24; font-size: 14px; height: 20px; }
+
+        /* Скрытое видео для обработки */
+        #hiddenVideo { display: none; }
+
+        /* Адаптивность */
+        @media(max-width: 768px) {
+            .app-container { grid-template-columns: 1fr; }
+        }
     </style>
 </head>
 <body>
 
-<div class="container">
-    <h2>Создание прозрачной GIF</h2>
+<div class="app-container">
+    <h1>Scret of Cdhuhu</h1>
 
-    <div class="step">
-        <h3>1. Загрузите видео</h3>
-        <input type="file" id="videoInput" accept="video/mp4,video/webm,video/mov">
-        <p class="alert">* Желательно снимать на однородном фоне (зеленый/синий/белый). Рекомендуемая длина: до 5-7 секунд.</p>
-        
-        <div class="slider-container">
-            <label for="tolerance">Сила удаления фона: <span id="tolValue">50</span></label><br>
-            <input type="range" id="tolerance" min="10" max="150" value="50" style="width: 100%;">
+    <!-- Левая панель -->
+    <div class="left-panel">
+        <div class="panel-box">
+            <div class="upload-wrapper">
+                <label for="videoInput" class="btn-upload">Загрузить видео</label>
+                <input type="file" id="videoInput" accept="video/mp4,video/webm,video/mov">
+                <span id="checkIcon">✅</span>
+            </div>
+            <p style="font-size: 12px; color: #9c80b6; margin-top: 10px;">* Рекомендуется до 5-7 секунд на однородном фоне.</p>
+        </div>
+
+        <div class="panel-box">
+            <div class="slider-container">
+                <label>Сила удаления фона: <span id="tolValue">60</span></label>
+                <input type="range" id="tolerance" min="10" max="150" value="60">
+            </div>
         </div>
     </div>
 
-    <div class="step">
-        <button id="processBtn">Обработать и создать GIF</button>
-        <div id="status">Обработка... Извлекаем кадры и удаляем фон...</div>
-    </div>
-
-    <div class="step" id="resultStep" style="display: none;">
-        <h3>2. Готово! Вставка в Genially</h3>
-        <p>Скопируйте этот код и в Genially выберите <b>Insert -> Other -> HTML</b></p>
-        <textarea id="outputCode" readonly></textarea>
-        <br><br>
-        <button id="copyBtn" style="background: #28a745; margin-bottom: 10px;">Скопировать код</button>
-        <button id="downloadBtn" style="background: #6c757d;">Скачать GIF файлом</button>
-
-        <h4 style="text-align:center; margin-top:20px;">Предпросмотр:</h4>
-        <div class="preview-area">
-            <img id="gifResult" src="" alt="Готовая GIF">
+    <!-- Правая панель -->
+    <div class="right-panel">
+        <div class="preview-box">
+            <span class="empty-text" id="emptyText">Предпросмотр...</span>
+            <canvas id="liveCanvas"></canvas>
+            <img id="finalGif" alt="Готовый GIF">
         </div>
+
+        <div class="options-grid">
+            <button class="btn-option active" id="optConvert">Конвертировать видео в гиф</button>
+            <button class="btn-option active" id="optQuality">Сжать гиф без потери качества</button>
+            <button class="btn-option active" id="optCode">Сжать готовый код</button>
+        </div>
+
+        <div id="processStatus"></div>
+
+        <button class="btn-main" id="btnProcess">Обработать и создать гиф</button>
+        <button class="btn-main btn-copy" id="btnCopy">Скопировать</button>
     </div>
 </div>
 
-<!-- Скрытые элементы для обработки видео -->
-<video id="hiddenVideo" style="display: none;" playsinline muted></video>
-<canvas id="hiddenCanvas" style="display: none;"></canvas>
+<!-- Скрытые элементы для расчетов -->
+<video id="hiddenVideo" muted playsinline loop></video>
+<canvas id="processCanvas" style="display:none;"></canvas>
 
 <script>
+    // Элементы DOM
     const videoInput = document.getElementById('videoInput');
-    const processBtn = document.getElementById('processBtn');
-    const statusDiv = document.getElementById('status');
-    const resultStep = document.getElementById('resultStep');
-    const outputCode = document.getElementById('outputCode');
-    const gifResult = document.getElementById('gifResult');
-    const copyBtn = document.getElementById('copyBtn');
-    const downloadBtn = document.getElementById('downloadBtn');
-    const hiddenVideo = document.getElementById('hiddenVideo');
-    const hiddenCanvas = document.getElementById('hiddenCanvas');
-    const ctx = hiddenCanvas.getContext('2d', { willReadFrequently: true });
+    const checkIcon = document.getElementById('checkIcon');
     const toleranceSlider = document.getElementById('tolerance');
     const tolValue = document.getElementById('tolValue');
+    
+    const hiddenVideo = document.getElementById('hiddenVideo');
+    const liveCanvas = document.getElementById('liveCanvas');
+    const liveCtx = liveCanvas.getContext('2d', { willReadFrequently: true });
+    const finalGif = document.getElementById('finalGif');
+    const emptyText = document.getElementById('emptyText');
+    
+    const btnProcess = document.getElementById('btnProcess');
+    const btnCopy = document.getElementById('btnCopy');
+    const processStatus = document.getElementById('processStatus');
+    
+    // Кнопки-настройки (визуальные + влияют на настройки сжатия)
+    const optQuality = document.getElementById('optQuality');
+    const optCode = document.getElementById('optCode');
+    const options = document.querySelectorAll('.btn-option');
+    
+    options.forEach(btn => {
+        btn.addEventListener('click', () => btn.classList.toggle('active'));
+    });
 
     let currentGifBase64 = '';
+    let isProcessing = false;
 
-    // Обновление значения ползунка
-    toleranceSlider.addEventListener('input', (e) => tolValue.innerText = e.target.value);
+    // Обновление цифры ползунка
+    toleranceSlider.addEventListener('input', (e) => {
+        tolValue.innerText = e.target.value;
+    });
 
-    processBtn.addEventListener('click', async () => {
-        if (!videoInput.files.length) return alert('Сначала загрузите видео!');
+    // 1. ЗАГРУЗКА ВИДЕО И ЖИВОЙ ПРЕДПРОСМОТР
+    videoInput.addEventListener('change', (e) => {
+        if (!e.target.files.length) return;
         
-        const file = videoInput.files[0];
+        const file = e.target.files[0];
         const fileURL = URL.createObjectURL(file);
         
-        processBtn.disabled = true;
-        statusDiv.style.display = 'block';
-        statusDiv.innerText = 'Подготовка видео...';
-        resultStep.style.display = 'none';
-
+        // Показываем зеленую галочку
+        checkIcon.classList.add('visible');
+        emptyText.style.display = 'none';
+        finalGif.style.display = 'none';
+        liveCanvas.style.display = 'block';
+        btnCopy.style.display = 'none';
+        btnProcess.style.display = 'block';
+        
         hiddenVideo.src = fileURL;
         
-        hiddenVideo.onloadedmetadata = async () => {
-            // Сжатие видео для Genially (макс ширина 250px)
-            const MAX_WIDTH = 250;
-            let width = hiddenVideo.videoWidth;
-            let height = hiddenVideo.videoHeight;
-            
-            if (width > MAX_WIDTH) {
-                height = Math.floor(height * (MAX_WIDTH / width));
-                width = MAX_WIDTH;
-            }
-
-            hiddenCanvas.width = width;
-            hiddenCanvas.height = height;
-
-            // Настройки извлечения кадров
-            const duration = hiddenVideo.duration;
-            const fps = 10; // Снижаем FPS для сжатия
-            const totalFrames = Math.floor(duration * fps);
-            const framesArray = [];
-            const tolerance = parseInt(toleranceSlider.value);
-
-            statusDiv.innerText = `Обработка кадров (0 / ${totalFrames})...`;
-
-            for (let i = 0; i <= totalFrames; i++) {
-                const time = i / fps;
-                await seekVideo(hiddenVideo, time);
-                
-                // Рисуем кадр
-                ctx.drawImage(hiddenVideo, 0, 0, width, height);
-                let frameData = ctx.getImageData(0, 0, width, height);
-                let data = frameData.data;
-
-                // Определяем цвет фона по левому верхнему пикселю
-                let bgR = data[0], bgG = data[1], bgB = data[2];
-
-                // Процесс Хромакея (Удаление фона)
-                for (let j = 0; j < data.length; j += 4) {
-                    let r = data[j], g = data[j+1], b = data[j+2];
-                    // Вычисляем разницу цветов
-                    let diff = Math.sqrt(Math.pow(r - bgR, 2) + Math.pow(g - bgG, 2) + Math.pow(b - bgB, 2));
-                    
-                    if (diff < tolerance) {
-                        data[j+3] = 0; // Делаем пиксель прозрачным
-                    }
-                }
-
-                ctx.putImageData(frameData, 0, 0);
-                framesArray.push(hiddenCanvas.toDataURL('image/png'));
-                statusDiv.innerText = `Обработка кадров (${i} / ${totalFrames})...`;
-            }
-
-            statusDiv.innerText = 'Сборка GIF... Это займет немного времени.';
-
-            // Создаем GIF
-            gifshot.createGIF({
-                images: framesArray,
-                gifWidth: width,
-                gifHeight: height,
-                interval: 1 / fps,
-                transparentHex: 'rgba(0,0,0,0)' // Поддержка прозрачности
-            }, function(obj) {
-                if(!obj.error) {
-                    currentGifBase64 = obj.image;
-                    
-                    // Формируем HTML код для Genially
-                    const geniallyCode = `<img src="${currentGifBase64}" style="width:100%; height:auto; background:transparent;" alt="gif">`;
-                    
-                    outputCode.value = geniallyCode;
-                    gifResult.src = currentGifBase64;
-                    
-                    statusDiv.style.display = 'none';
-                    resultStep.style.display = 'block';
-                } else {
-                    alert("Ошибка при создании GIF");
-                    statusDiv.style.display = 'none';
-                }
-                processBtn.disabled = false;
-            });
+        hiddenVideo.onloadedmetadata = () => {
+            liveCanvas.width = hiddenVideo.videoWidth;
+            liveCanvas.height = hiddenVideo.videoHeight;
+            hiddenVideo.play();
+            renderLivePreview(); // Запускаем цикл удаления фона в реальном времени
         };
     });
 
-    // Функция для перемотки видео до нужного кадра
+    // Функция живого предпросмотра (применяет Хромакей прямо к играющему видео)
+    function renderLivePreview() {
+        if (isProcessing) return; // Останавливаем живой просмотр, если начался рендер GIF
+        if (!hiddenVideo.paused && !hiddenVideo.ended) {
+            liveCtx.drawImage(hiddenVideo, 0, 0, liveCanvas.width, liveCanvas.height);
+            let frame = liveCtx.getImageData(0, 0, liveCanvas.width, liveCanvas.height);
+            applyChromaKey(frame);
+            liveCtx.putImageData(frame, 0, 0);
+        }
+        requestAnimationFrame(renderLivePreview);
+    }
+
+    // Логика удаления фона (берет пиксель 5x5 из левого верхнего угла как образец фона)
+    function applyChromaKey(frameData) {
+        let data = frameData.data;
+        let bgR = data[0], bgG = data[1], bgB = data[2];
+        let tolerance = parseInt(toleranceSlider.value);
+
+        for (let j = 0; j < data.length; j += 4) {
+            let r = data[j], g = data[j+1], b = data[j+2];
+            let diff = Math.sqrt(Math.pow(r - bgR, 2) + Math.pow(g - bgG, 2) + Math.pow(b - bgB, 2));
+            if (diff < tolerance) {
+                data[j+3] = 0; // Альфа-канал в 0 (прозрачность)
+            }
+        }
+    }
+
+    // 2. ОБРАБОТКА И СОЗДАНИЕ GIF
+    btnProcess.addEventListener('click', async () => {
+        if (!videoInput.files.length) return alert('Сначала загрузите видео!');
+        
+        isProcessing = true;
+        btnProcess.disabled = true;
+        hiddenVideo.pause(); // Останавливаем предпросмотр
+        liveCanvas.style.display = 'none';
+        emptyText.style.display = 'inline';
+        emptyText.innerText = 'Идет магия звезд...';
+        
+        // Настройки сжатия на основе активных кнопок
+        const compressCodeActive = optCode.classList.contains('active');
+        const compressQualityActive = optQuality.classList.contains('active');
+        
+        const MAX_WIDTH = compressCodeActive ? 200 : 300; // Меньше ширина - меньше код
+        const fps = compressQualityActive ? 10 : 15; // Сжатие без сильной потери
+        
+        let width = hiddenVideo.videoWidth;
+        let height = hiddenVideo.videoHeight;
+        
+        if (width > MAX_WIDTH) {
+            height = Math.floor(height * (MAX_WIDTH / width));
+            width = MAX_WIDTH;
+        }
+
+        const processCanvas = document.getElementById('processCanvas');
+        const pCtx = processCanvas.getContext('2d', { willReadFrequently: true });
+        processCanvas.width = width;
+        processCanvas.height = height;
+
+        const duration = hiddenVideo.duration;
+        const totalFrames = Math.floor((duration > 5 ? 5 : duration) * fps); // Ограничиваем до 5 сек для стабильности
+        const framesArray = [];
+
+        processStatus.innerText = `Анализ пространства (0 / ${totalFrames})...`;
+
+        for (let i = 0; i <= totalFrames; i++) {
+            const time = i / fps;
+            await seekVideo(hiddenVideo, time);
+            
+            pCtx.drawImage(hiddenVideo, 0, 0, width, height);
+            let frameData = pCtx.getImageData(0, 0, width, height);
+            
+            applyChromaKey(frameData); // Удаляем фон
+            pCtx.putImageData(frameData, 0, 0);
+            
+            // Используем сильное сжатие PNG кадра для уменьшения итогового веса
+            framesArray.push(processCanvas.toDataURL('image/png', 0.5));
+            processStatus.innerText = `Анализ пространства (${i} / ${totalFrames})...`;
+        }
+
+        processStatus.innerText = 'Сборка артефакта (GIF)...';
+
+        gifshot.createGIF({
+            images: framesArray,
+            gifWidth: width,
+            gifHeight: height,
+            interval: 1 / fps,
+            numWorkers: 2,
+            transparentHex: 'rgba(0,0,0,0)'
+        }, function(obj) {
+            if(!obj.error) {
+                currentGifBase64 = obj.image;
+                
+                // Показываем результат
+                emptyText.style.display = 'none';
+                finalGif.src = currentGifBase64;
+                finalGif.style.display = 'block';
+                
+                // Меняем кнопки
+                btnProcess.style.display = 'none';
+                btnCopy.style.display = 'block';
+                processStatus.innerText = 'Готово! Скопируйте код для Genially.';
+            } else {
+                processStatus.innerText = 'Ошибка создания артефакта.';
+                processStatus.style.color = '#ef4444';
+            }
+            btnProcess.disabled = false;
+            isProcessing = false;
+        });
+    });
+
+    // Утилита для перемотки видео
     function seekVideo(video, time) {
         return new Promise((resolve) => {
             video.currentTime = time;
@@ -188,21 +435,26 @@
         });
     }
 
-    // Копирование кода
-    copyBtn.addEventListener('click', () => {
-        outputCode.select();
-        document.execCommand('copy');
-        copyBtn.innerText = '✓ Скопировано!';
-        setTimeout(() => copyBtn.innerText = 'Скопировать код', 2000);
+    // 3. КОПИРОВАНИЕ КОДА БЕЗ ТЕКСТОВОГО ПОЛЯ
+    btnCopy.addEventListener('click', () => {
+        // Формируем HTML код для вставки в Genially
+        const geniallyCode = `<img src="${currentGifBase64}" style="width:100%; height:auto; background:transparent;" alt="gif">`;
+        
+        // Копируем напрямую в буфер обмена браузера
+        navigator.clipboard.writeText(geniallyCode).then(() => {
+            const originalText = btnCopy.innerText;
+            btnCopy.innerText = '✓ СКОПИРОВАНО!';
+            btnCopy.style.background = '#059669'; // Темно-зеленый
+            
+            setTimeout(() => {
+                btnCopy.innerText = originalText;
+                btnCopy.style.background = '#10b981';
+            }, 3000);
+        }).catch(err => {
+            alert('Ошибка копирования. Ваш браузер блокирует буфер обмена.');
+        });
     });
 
-    // Скачивание
-    downloadBtn.addEventListener('click', () => {
-        const a = document.createElement('a');
-        a.href = currentGifBase64;
-        a.download = 'transparent.gif';
-        a.click();
-    });
 </script>
 
 </body>
