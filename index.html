@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>GIF Редактор</title>
+    <title>Scret of Cdhuhu - GIF Editor</title>
     <!-- Библиотека для GIF -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/gifshot/0.3.2/gifshot.min.js"></script>
     <style>
@@ -47,6 +47,7 @@
             margin-bottom: 20px;
             text-shadow: 0 0 15px rgba(183, 102, 255, 0.8);
             letter-spacing: 2px;
+            text-transform: uppercase;
         }
 
         /* Левая панель - Управление */
@@ -188,12 +189,12 @@
         .btn-main:hover { filter: brightness(1.2); box-shadow: 0 0 30px rgba(217, 70, 239, 0.7); }
         .btn-main:disabled { background: #4b365e; color: #888; cursor: not-allowed; box-shadow: none; }
 
-        .btn-copy {
-            background: #10b981; /* Зеленоватый для успеха */
+        .btn-download {
+            background: #10b981; /* Зеленоватый */
             box-shadow: 0 0 20px rgba(16, 185, 129, 0.4);
             display: none; /* Скрыта до готовности */
         }
-        .btn-copy:hover { box-shadow: 0 0 30px rgba(16, 185, 129, 0.7); }
+        .btn-download:hover { background: #059669; box-shadow: 0 0 30px rgba(16, 185, 129, 0.7); }
 
         #processStatus { text-align: center; color: #fbbf24; font-size: 14px; height: 20px; }
 
@@ -209,7 +210,7 @@
 <body>
 
 <div class="app-container">
-    <h1>GIF Редактор</h1>
+    <h1>Scret of Cdhuhu</h1>
 
     <!-- Левая панель -->
     <div class="left-panel">
@@ -224,8 +225,8 @@
 
         <div class="panel-box">
             <div class="slider-container">
-                <label>Сила удаления фона: <span id="tolValue">60</span></label>
-                <input type="range" id="tolerance" min="10" max="150" value="60">
+                <label>Сила удаления фона: <span id="tolValue">45</span></label>
+                <input type="range" id="tolerance" min="10" max="150" value="45">
             </div>
         </div>
     </div>
@@ -241,13 +242,12 @@
         <div class="options-grid">
             <button class="btn-option active" id="optConvert">Конвертировать видео в гиф</button>
             <button class="btn-option active" id="optQuality">Сжать гиф без потери качества</button>
-            <button class="btn-option active" id="optCode">Сжать готовый код</button>
         </div>
 
         <div id="processStatus"></div>
 
         <button class="btn-main" id="btnProcess">Обработать и создать гиф</button>
-        <button class="btn-main btn-copy" id="btnCopy">Скопировать</button>
+        <button class="btn-main btn-download" id="btnDownload">СКАЧАТЬ GIF</button>
     </div>
 </div>
 
@@ -269,12 +269,11 @@
     const emptyText = document.getElementById('emptyText');
     
     const btnProcess = document.getElementById('btnProcess');
-    const btnCopy = document.getElementById('btnCopy');
+    const btnDownload = document.getElementById('btnDownload');
     const processStatus = document.getElementById('processStatus');
     
-    // Кнопки-настройки (визуальные + влияют на настройки сжатия)
+    // Кнопки-настройки 
     const optQuality = document.getElementById('optQuality');
-    const optCode = document.getElementById('optCode');
     const options = document.querySelectorAll('.btn-option');
     
     options.forEach(btn => {
@@ -296,13 +295,13 @@
         const file = e.target.files[0];
         const fileURL = URL.createObjectURL(file);
         
-        // Показываем зеленую галочку
         checkIcon.classList.add('visible');
         emptyText.style.display = 'none';
         finalGif.style.display = 'none';
         liveCanvas.style.display = 'block';
-        btnCopy.style.display = 'none';
+        btnDownload.style.display = 'none';
         btnProcess.style.display = 'block';
+        processStatus.innerText = '';
         
         hiddenVideo.src = fileURL;
         
@@ -310,11 +309,11 @@
             liveCanvas.width = hiddenVideo.videoWidth;
             liveCanvas.height = hiddenVideo.videoHeight;
             hiddenVideo.play();
-            renderLivePreview(); // Запускаем цикл удаления фона в реальном времени
+            renderLivePreview(); 
         };
     });
 
-    // Функция живого предпросмотра (прозрачность делается альфа-каналом 0)
+    // Функция живого предпросмотра
     function renderLivePreview() {
         if (isProcessing) return; 
         if (!hiddenVideo.paused && !hiddenVideo.ended) {
@@ -330,7 +329,7 @@
                 let r = data[j], g = data[j+1], b = data[j+2];
                 let diff = Math.sqrt(Math.pow(r - bgR, 2) + Math.pow(g - bgG, 2) + Math.pow(b - bgB, 2));
                 if (diff < tolerance) {
-                    data[j+3] = 0; // Для визуального просмотра делаем прозрачным
+                    data[j+3] = 0; 
                 }
             }
             liveCtx.putImageData(frame, 0, 0);
@@ -344,17 +343,16 @@
         
         isProcessing = true;
         btnProcess.disabled = true;
-        hiddenVideo.pause(); // Останавливаем предпросмотр
+        hiddenVideo.pause(); 
         liveCanvas.style.display = 'none';
         emptyText.style.display = 'inline';
         emptyText.innerText = 'Идет магия звезд...';
         
-        // Настройки сжатия на основе активных кнопок
-        const compressCodeActive = optCode.classList.contains('active');
+        // Поскольку теперь мы скачиваем файл, можем сделать качество выше
         const compressQualityActive = optQuality.classList.contains('active');
         
-        const MAX_WIDTH = compressCodeActive ? 200 : 300; 
-        const fps = compressQualityActive ? 10 : 15; 
+        const MAX_WIDTH = 400; // Разрешение увеличено для лучшего качества
+        const fps = compressQualityActive ? 12 : 15; 
         
         let width = hiddenVideo.videoWidth;
         let height = hiddenVideo.videoHeight;
@@ -370,7 +368,7 @@
         processCanvas.height = height;
 
         const duration = hiddenVideo.duration;
-        const totalFrames = Math.floor((duration > 5 ? 5 : duration) * fps); 
+        const totalFrames = Math.floor((duration > 7 ? 7 : duration) * fps); 
         const framesArray = [];
 
         processStatus.innerText = `Анализ пространства (0 / ${totalFrames})...`;
@@ -379,14 +377,12 @@
             const time = i / fps;
             await seekVideo(hiddenVideo, time);
             
-            // Важное исправление багов gifshot: заливаем фон ядовито-пурпурным цветом (Magenta #FF00FF)
             pCtx.fillStyle = '#FF00FF'; 
             pCtx.fillRect(0, 0, width, height);
             
             pCtx.drawImage(hiddenVideo, 0, 0, width, height);
             let frameData = pCtx.getImageData(0, 0, width, height);
             
-            // Логика удаления фона для рендера
             let data = frameData.data;
             let bgR = data[0], bgG = data[1], bgB = data[2];
             let tolerance = parseInt(toleranceSlider.value);
@@ -395,16 +391,14 @@
                 let r = data[j], g = data[j+1], b = data[j+2];
                 let diff = Math.sqrt(Math.pow(r - bgR, 2) + Math.pow(g - bgG, 2) + Math.pow(b - bgB, 2));
                 if (diff < tolerance) {
-                    // Перекрашиваем фон в пурпурный (Magenta), чтобы упаковщик понял, что это пустота
-                    data[j] = 255;   // R
-                    data[j+1] = 0;   // G
-                    data[j+2] = 255; // B
-                    data[j+3] = 255; // Alpha
+                    data[j] = 255;   
+                    data[j+1] = 0;   
+                    data[j+2] = 255; 
+                    data[j+3] = 255; 
                 }
             }
             pCtx.putImageData(frameData, 0, 0);
             
-            // Сохраняем без потери качества, чтобы цвет не исказился
             framesArray.push(processCanvas.toDataURL('image/png', 1.0));
             processStatus.innerText = `Анализ пространства (${i} / ${totalFrames})...`;
         }
@@ -417,7 +411,7 @@
             gifHeight: height,
             interval: 1 / fps,
             numWorkers: 2,
-            transparentHex: '#FF00FF' // Указываем упаковщику вырезать пурпурный цвет!
+            transparentHex: '#FF00FF' 
         }, function(obj) {
             if(!obj.error) {
                 currentGifBase64 = obj.image;
@@ -427,8 +421,10 @@
                 finalGif.style.display = 'block';
                 
                 btnProcess.style.display = 'none';
-                btnCopy.style.display = 'block';
-                processStatus.innerText = 'Готово! Скопируйте код для Genially.';
+                btnDownload.style.display = 'block';
+                // Подсказка пользователю
+                processStatus.innerText = 'Готово! Скачайте GIF и перетащите в Genially.';
+                processStatus.style.color = '#4ade80';
             } else {
                 processStatus.innerText = 'Ошибка создания артефакта.';
                 processStatus.style.color = '#ef4444';
@@ -438,7 +434,6 @@
         });
     });
 
-    // Утилита для перемотки видео
     function seekVideo(video, time) {
         return new Promise((resolve) => {
             video.currentTime = time;
@@ -449,23 +444,16 @@
         });
     }
 
-    // 3. КОПИРОВАНИЕ КОДА (Обернуто в HTML div для Genially)
-    btnCopy.addEventListener('click', () => {
-        // Оборачиваем в строгий HTML div, чтобы Genially точно принял код
-        const geniallyCode = `<div style="width:100%;text-align:center;"><img src="${currentGifBase64}" style="max-width:100%;height:auto;background:transparent;" alt="animation"></div>`;
+    // 3. СКАЧИВАНИЕ ФАЙЛА ВМЕСТО КОПИРОВАНИЯ КОДА
+    btnDownload.addEventListener('click', () => {
+        const link = document.createElement('a');
+        link.href = currentGifBase64;
+        link.download = 'magic_character.gif'; // Имя файла
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
         
-        navigator.clipboard.writeText(geniallyCode).then(() => {
-            const originalText = btnCopy.innerText;
-            btnCopy.innerText = '✓ СКОПИРОВАНО!';
-            btnCopy.style.background = '#059669'; 
-            
-            setTimeout(() => {
-                btnCopy.innerText = originalText;
-                btnCopy.style.background = '#10b981';
-            }, 3000);
-        }).catch(err => {
-            alert('Ошибка копирования. Ваш браузер блокирует буфер обмена.');
-        });
+        processStatus.innerText = 'Файл скачан! Теперь загрузите его в Genially (раздел Image).';
     });
 
 </script>
