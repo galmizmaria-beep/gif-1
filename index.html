@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="ru">
 <head>
@@ -11,9 +10,11 @@
         /* Основной мистический/космический стиль */
         @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@600&family=Jost:wght@300;400;500&display=swap');
 
+        /* Изменили настройки body, чтобы окно могло скроллиться, если не влезает */
         body {
             margin: 0;
-            padding: 0;
+            padding: 15px; /* Небольшой отступ от краев экрана */
+            box-sizing: border-box;
             background: #0f0518;
             background-image: radial-gradient(circle at 10% 20%, rgba(67, 24, 107, 0.4) 0%, transparent 40%),
                               radial-gradient(circle at 90% 80%, rgba(93, 31, 148, 0.3) 0%, transparent 40%);
@@ -23,47 +24,50 @@
             display: flex;
             justify-content: center;
             align-items: center;
+            overflow-y: auto; /* Включаем скролл, если контент больше экрана */
         }
 
+        /* Ужали контейнер */
         .app-container {
-            width: 90%;
-            max-width: 1100px;
+            width: 100%;
+            max-width: 1000px; /* Чуть уменьшили ширину */
             display: grid;
             grid-template-columns: 1fr 1.5fr;
-            gap: 30px;
-            padding: 40px;
+            gap: 20px; /* Уменьшили расстояние между колонками с 30 до 20 */
+            padding: 25px; /* Уменьшили внутренние отступы с 40 до 25 */
             background: rgba(32, 14, 55, 0.5);
             backdrop-filter: blur(10px);
             border-radius: 20px;
             border: 1px solid rgba(138, 75, 206, 0.3);
             box-shadow: 0 0 40px rgba(67, 24, 107, 0.6);
+            margin: auto; /* Для правильного центрирования при скролле */
         }
 
         h1 {
             grid-column: 1 / -1;
             text-align: center;
             font-family: 'Cinzel', serif;
-            font-size: 2.5rem;
+            font-size: 1.8rem; /* Уменьшили шрифт заголовка */
             margin-top: 0;
-            margin-bottom: 20px;
+            margin-bottom: 10px; /* Уменьшили отступ под заголовком */
             text-shadow: 0 0 15px rgba(183, 102, 255, 0.8);
             letter-spacing: 2px;
             text-transform: uppercase;
         }
 
-        .left-panel { display: flex; flex-direction: column; gap: 25px; }
-        .panel-box { background: rgba(20, 8, 38, 0.7); padding: 25px; border-radius: 15px; border: 1px solid rgba(138, 75, 206, 0.2); }
+        .left-panel { display: flex; flex-direction: column; gap: 15px; /* Уменьшили gap */ }
+        .panel-box { background: rgba(20, 8, 38, 0.7); padding: 15px; /* Уменьшили padding с 25 до 15 */ border-radius: 15px; border: 1px solid rgba(138, 75, 206, 0.2); }
         .upload-wrapper { display: flex; align-items: center; gap: 15px; }
 
         .btn-upload {
             background: linear-gradient(135deg, #a64dff, #6b21a8);
             color: #fff;
-            padding: 12px 25px;
+            padding: 10px 20px; /* Сделали кнопку чуть компактнее */
             border-radius: 30px;
             cursor: pointer;
             font-weight: 500;
             text-transform: uppercase;
-            font-size: 14px;
+            font-size: 13px;
             letter-spacing: 1px;
             box-shadow: 0 0 15px rgba(166, 77, 255, 0.4);
             transition: 0.3s;
@@ -72,14 +76,14 @@
         .btn-upload:hover { box-shadow: 0 0 25px rgba(166, 77, 255, 0.8); transform: scale(1.05); }
         input[type="file"] { display: none; }
         
-        #checkIcon { color: #4ade80; font-size: 24px; opacity: 0; transform: scale(0); transition: 0.3s; }
+        #checkIcon { color: #4ade80; font-size: 20px; opacity: 0; transform: scale(0); transition: 0.3s; }
         #checkIcon.visible { opacity: 1; transform: scale(1); }
 
-        .slider-container label { display: block; margin-bottom: 10px; font-size: 15px; color: #cba4f0; }
+        .slider-container label { display: block; margin-bottom: 8px; font-size: 14px; color: #cba4f0; }
         input[type="range"] { -webkit-appearance: none; width: 100%; height: 6px; background: rgba(138, 75, 206, 0.3); border-radius: 5px; outline: none; }
         input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; width: 18px; height: 18px; border-radius: 50%; background: #d8b4fe; box-shadow: 0 0 10px #d8b4fe; cursor: pointer; }
 
-        .right-panel { display: flex; flex-direction: column; gap: 20px; }
+        .right-panel { display: flex; flex-direction: column; gap: 15px; /* Уменьшили gap с 20 до 15 */ }
 
         .preview-box {
             position: relative;
@@ -87,7 +91,7 @@
             border-radius: 15px;
             border: 2px solid rgba(183, 102, 255, 0.5);
             box-shadow: inset 0 0 30px rgba(183, 102, 255, 0.2), 0 0 20px rgba(183, 102, 255, 0.1);
-            height: 300px;
+            height: 220px; /* СИЛЬНО УМЕНЬШИЛИ ВЫСОТУ ЭКРАНА (было 300px) */
             display: flex;
             align-items: center;
             justify-content: center;
@@ -99,50 +103,49 @@
 
         #liveCanvas { max-width: 100%; max-height: 100%; z-index: 2; position: absolute; }
         #finalGif { max-width: 100%; max-height: 100%; z-index: 3; position: absolute; display: none; }
-        .empty-text { position: absolute; color: rgba(203, 164, 240, 0.5); z-index: 1; font-style: italic; }
+        .empty-text { position: absolute; color: rgba(203, 164, 240, 0.5); z-index: 1; font-style: italic; font-size: 14px;}
 
         .options-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
-        .btn-option { background: rgba(138, 75, 206, 0.1); border: 1px solid rgba(138, 75, 206, 0.4); color: #d8b4fe; padding: 10px; border-radius: 8px; cursor: pointer; font-family: inherit; font-size: 13px; transition: 0.3s; text-align: center; }
+        .btn-option { background: rgba(138, 75, 206, 0.1); border: 1px solid rgba(138, 75, 206, 0.4); color: #d8b4fe; padding: 8px; /* Уменьшили отступ кнопок */ border-radius: 8px; cursor: pointer; font-family: inherit; font-size: 12px; transition: 0.3s; text-align: center; }
         .btn-option:hover { background: rgba(138, 75, 206, 0.3); }
         .btn-option.active { background: rgba(183, 102, 255, 0.5); border-color: #d8b4fe; box-shadow: 0 0 10px rgba(183, 102, 255, 0.5); color: #fff;}
 
-        /* СТИЛИ МЕНЮ КАЧЕСТВА - ТЕПЕРЬ ОТКРЫВАЕТСЯ ВВЕРХ */
+        /* СТИЛИ МЕНЮ КАЧЕСТВА */
         .dropdown-wrapper { position: relative; grid-column: 1 / -1; }
         .dropdown-content {
             display: none; 
             position: absolute; 
-            bottom: 100%; /* Заменено top: 100% на bottom: 100% для открытия вверх */
+            bottom: 100%; 
             left: 0; 
             width: 100%;
             background: rgba(32, 14, 55, 0.95); 
             border: 1px solid rgba(138, 75, 206, 0.5);
             border-radius: 8px; 
             z-index: 10; 
-            margin-bottom: 5px; /* Заменено margin-top на margin-bottom */
-            box-shadow: 0 -5px 15px rgba(0,0,0,0.5); /* Тень направлена вверх */
-            max-height: 120px; /* Немного уменьшили для 100% гарантии в Genially */
+            margin-bottom: 5px; 
+            box-shadow: 0 -5px 15px rgba(0,0,0,0.5); 
+            max-height: 120px; 
             overflow-y: auto; 
         }
         
-        /* Дизайн самого ползунка скролла для меню */
         .dropdown-content::-webkit-scrollbar { width: 6px; }
         .dropdown-content::-webkit-scrollbar-track { background: rgba(20, 8, 38, 0.7); border-radius: 8px; }
         .dropdown-content::-webkit-scrollbar-thumb { background: #d8b4fe; border-radius: 8px; }
         .dropdown-content::-webkit-scrollbar-thumb:hover { background: #a64dff; }
 
         .dropdown-content.show { display: block; }
-        .dropdown-content div { padding: 10px; color: #d8b4fe; cursor: pointer; font-size: 13px; text-align: center; border-bottom: 1px solid rgba(138, 75, 206, 0.2); transition: 0.2s; }
+        .dropdown-content div { padding: 8px; color: #d8b4fe; cursor: pointer; font-size: 12px; text-align: center; border-bottom: 1px solid rgba(138, 75, 206, 0.2); transition: 0.2s; }
         .dropdown-content div:hover { background: rgba(183, 102, 255, 0.4); color: #fff; }
         .dropdown-content div:last-child { border-bottom: none; }
 
-        .btn-main { background: linear-gradient(90deg, #d946ef, #8b5cf6); border: none; color: white; padding: 15px; font-size: 16px; border-radius: 10px; cursor: pointer; text-transform: uppercase; font-weight: bold; box-shadow: 0 0 20px rgba(217, 70, 239, 0.4); transition: 0.3s; margin-top: 10px; }
+        .btn-main { background: linear-gradient(90deg, #d946ef, #8b5cf6); border: none; color: white; padding: 12px; font-size: 14px; border-radius: 10px; cursor: pointer; text-transform: uppercase; font-weight: bold; box-shadow: 0 0 20px rgba(217, 70, 239, 0.4); transition: 0.3s; margin-top: 5px; }
         .btn-main:hover { filter: brightness(1.2); box-shadow: 0 0 30px rgba(217, 70, 239, 0.7); }
         .btn-main:disabled { background: #4b365e; color: #888; cursor: not-allowed; box-shadow: none; }
 
         .btn-download { background: #10b981; box-shadow: 0 0 20px rgba(16, 185, 129, 0.4); display: none; }
         .btn-download:hover { background: #059669; box-shadow: 0 0 30px rgba(16, 185, 129, 0.7); }
 
-        #processStatus { text-align: center; color: #fbbf24; font-size: 14px; height: 20px; }
+        #processStatus { text-align: center; color: #fbbf24; font-size: 13px; min-height: 15px; margin: -5px 0; }
         #hiddenVideo { display: none; }
 
         @media(max-width: 768px) { .app-container { grid-template-columns: 1fr; } }
@@ -161,7 +164,7 @@
                 <input type="file" id="videoInput" accept="video/mp4,video/webm,video/mov">
                 <span id="checkIcon">✅</span>
             </div>
-            <p style="font-size: 12px; color: #9c80b6; margin-top: 10px;">* Рекомендуется до 5-7 секунд на однородном фоне.</p>
+            <p style="font-size: 11px; color: #9c80b6; margin-top: 10px; margin-bottom: 0;">* Рекомендуется до 5-7 секунд на однородном фоне.</p>
         </div>
 
         <div class="panel-box">
@@ -188,7 +191,7 @@
             <div class="dropdown-wrapper">
                 <button class="btn-option" id="qualityBtn" style="width: 100%;">Выбрать качество: 720p ▲</button>
                 <div class="dropdown-content" id="qualityDropdown">
-                    <div data-val="300" data-label="720p">720p (Оптимально для Genially)</div>
+                    <div data-val="300" data-label="720p">720p (Оптимально)</div>
                     <div data-val="450" data-label="1080p">1080p (Высокое)</div>
                     <div data-val="600" data-label="2K">2K (Ультра)</div>
                     <div data-val="800" data-label="4K">4K (Тяжелое)</div>
@@ -305,7 +308,7 @@
         requestAnimationFrame(renderLivePreview);
     }
 
-    // 2. ОБРАБОТКА (Используем профессиональный gif.js)
+    // 2. ОБРАБОТКА
     btnProcess.addEventListener('click', async () => {
         if (!videoInput.files.length) return alert('Сначала загрузите видео!');
         
@@ -316,19 +319,16 @@
         emptyText.style.display = 'inline';
         emptyText.innerText = 'Подготовка магии...';
         
-        // Умное сжатие для обеспечения веса до 5 МБ
         const forceCompression = optQuality.classList.contains('active');
         
-        // Чем выше разрешение, тем ниже мы делаем FPS, чтобы не превысить 5 МБ
         let fps = 12; 
-        if (selectedQualityWidth >= 600) fps = 8; // Для 2K и выше режем частоту кадров
-        if (selectedQualityWidth >= 800) fps = 5; // Для 4K и 8K делаем жесткое сжатие
-        if (!forceCompression) fps += 3; // Если кнопка сжатия выключена, делаем чуть плавнее
+        if (selectedQualityWidth >= 600) fps = 8; 
+        if (selectedQualityWidth >= 800) fps = 5; 
+        if (!forceCompression) fps += 3; 
         
         let width = hiddenVideo.videoWidth;
         let height = hiddenVideo.videoHeight;
         
-        // Применяем выбранное качество
         if (width > selectedQualityWidth) {
             height = Math.floor(height * (selectedQualityWidth / width));
             width = selectedQualityWidth;
@@ -340,7 +340,6 @@
         processCanvas.height = height;
 
         const duration = hiddenVideo.duration;
-        // Ограничиваем длину при огромном разрешении, чтобы браузер не лопнул
         let maxSeconds = (selectedQualityWidth >= 800) ? 4 : 7; 
         const totalFrames = Math.floor((duration > maxSeconds ? maxSeconds : duration) * fps); 
 
@@ -349,7 +348,7 @@
 
         const gif = new GIF({
             workers: 2,
-            quality: forceCompression ? 20 : 10, // quality 20 = сильное сжатие цветов для < 5MB
+            quality: forceCompression ? 20 : 10,
             width: width,
             height: height,
             workerScript: workerUrl,
@@ -399,9 +398,8 @@
             btnProcess.style.display = 'none';
             btnDownload.style.display = 'block';
             
-            // Показываем примерный вес готового файла
             let mbSize = (blob.size / (1024 * 1024)).toFixed(1);
-            processStatus.innerText = `Готово! Вес: ~${mbSize} МБ. Скачайте и перетащите в Genially.`;
+            processStatus.innerText = `Готово! Вес: ~${mbSize} МБ.`;
             processStatus.style.color = '#4ade80';
             
             btnProcess.disabled = false;
