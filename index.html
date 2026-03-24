@@ -105,13 +105,23 @@
         .btn-option:hover { background: rgba(138, 75, 206, 0.3); }
         .btn-option.active { background: rgba(183, 102, 255, 0.5); border-color: #d8b4fe; box-shadow: 0 0 10px rgba(183, 102, 255, 0.5); color: #fff;}
 
-        /* Стили для выпадающего списка качества */
+        /* Стили для выпадающего списка качества (С ДОБАВЛЕННЫМ СКРОЛЛОМ) */
         .dropdown-wrapper { position: relative; grid-column: 1 / -1; }
         .dropdown-content {
             display: none; position: absolute; top: 100%; left: 0; width: 100%;
             background: rgba(32, 14, 55, 0.95); border: 1px solid rgba(138, 75, 206, 0.5);
-            border-radius: 8px; z-index: 10; overflow: hidden; box-shadow: 0 5px 15px rgba(0,0,0,0.5); margin-top: 5px;
+            border-radius: 8px; z-index: 10; margin-top: 5px; box-shadow: 0 5px 15px rgba(0,0,0,0.5);
+            /* Добавлено ограничение по высоте и скролл */
+            max-height: 140px; 
+            overflow-y: auto; 
         }
+        
+        /* Дизайн самого ползунка скролла для меню */
+        .dropdown-content::-webkit-scrollbar { width: 6px; }
+        .dropdown-content::-webkit-scrollbar-track { background: rgba(20, 8, 38, 0.7); border-radius: 8px; }
+        .dropdown-content::-webkit-scrollbar-thumb { background: #d8b4fe; border-radius: 8px; }
+        .dropdown-content::-webkit-scrollbar-thumb:hover { background: #a64dff; }
+
         .dropdown-content.show { display: block; }
         .dropdown-content div { padding: 10px; color: #d8b4fe; cursor: pointer; font-size: 13px; text-align: center; border-bottom: 1px solid rgba(138, 75, 206, 0.2); transition: 0.2s; }
         .dropdown-content div:hover { background: rgba(183, 102, 255, 0.4); color: #fff; }
