@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Scret of Cdhuhu - GIF Editor</title>
+    <title>GIF Редактор</title>
     <!-- Подключаем профессиональную библиотеку gif.js -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/gif.js/0.2.0/gif.js"></script>
     <style>
@@ -101,9 +101,21 @@
         .empty-text { position: absolute; color: rgba(203, 164, 240, 0.5); z-index: 1; font-style: italic; }
 
         .options-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
-        .btn-option { background: rgba(138, 75, 206, 0.1); border: 1px solid rgba(138, 75, 206, 0.4); color: #d8b4fe; padding: 10px; border-radius: 8px; cursor: pointer; font-family: inherit; font-size: 13px; transition: 0.3s; }
+        .btn-option { background: rgba(138, 75, 206, 0.1); border: 1px solid rgba(138, 75, 206, 0.4); color: #d8b4fe; padding: 10px; border-radius: 8px; cursor: pointer; font-family: inherit; font-size: 13px; transition: 0.3s; text-align: center; }
         .btn-option:hover { background: rgba(138, 75, 206, 0.3); }
         .btn-option.active { background: rgba(183, 102, 255, 0.5); border-color: #d8b4fe; box-shadow: 0 0 10px rgba(183, 102, 255, 0.5); color: #fff;}
+
+        /* Стили для выпадающего списка качества */
+        .dropdown-wrapper { position: relative; grid-column: 1 / -1; }
+        .dropdown-content {
+            display: none; position: absolute; top: 100%; left: 0; width: 100%;
+            background: rgba(32, 14, 55, 0.95); border: 1px solid rgba(138, 75, 206, 0.5);
+            border-radius: 8px; z-index: 10; overflow: hidden; box-shadow: 0 5px 15px rgba(0,0,0,0.5); margin-top: 5px;
+        }
+        .dropdown-content.show { display: block; }
+        .dropdown-content div { padding: 10px; color: #d8b4fe; cursor: pointer; font-size: 13px; text-align: center; border-bottom: 1px solid rgba(138, 75, 206, 0.2); transition: 0.2s; }
+        .dropdown-content div:hover { background: rgba(183, 102, 255, 0.4); color: #fff; }
+        .dropdown-content div:last-child { border-bottom: none; }
 
         .btn-main { background: linear-gradient(90deg, #d946ef, #8b5cf6); border: none; color: white; padding: 15px; font-size: 16px; border-radius: 10px; cursor: pointer; text-transform: uppercase; font-weight: bold; box-shadow: 0 0 20px rgba(217, 70, 239, 0.4); transition: 0.3s; margin-top: 10px; }
         .btn-main:hover { filter: brightness(1.2); box-shadow: 0 0 30px rgba(217, 70, 239, 0.7); }
@@ -121,7 +133,7 @@
 <body>
 
 <div class="app-container">
-    <h1>Scret of Cdhuhu</h1>
+    <h1>GIF Редактор</h1>
 
     <!-- Левая панель -->
     <div class="left-panel">
@@ -152,7 +164,19 @@
 
         <div class="options-grid">
             <button class="btn-option active" id="optConvert">Конвертировать видео в гиф</button>
-            <button class="btn-option active" id="optQuality">Сжать гиф без потери качества</button>
+            <button class="btn-option active" id="optQuality">Сжать гиф (< 5 МБ)</button>
+            
+            <!-- Выпадающее меню качества -->
+            <div class="dropdown-wrapper">
+                <button class="btn-option" id="qualityBtn" style="width: 100%;">Выбрать качество: 720p ▼</button>
+                <div class="dropdown-content" id="qualityDropdown">
+                    <div data-val="300" data-label="720p">720p (Оптимально для Genially)</div>
+                    <div data-val="450" data-label="1080p">1080p (Высокое)</div>
+                    <div data-val="600" data-label="2K">2K (Ультра)</div>
+                    <div data-val="800" data-label="4K">4K (Тяжелое)</div>
+                    <div data-val="1000" data-label="8K">8K (Максимум)</div>
+                </div>
+            </div>
         </div>
 
         <div id="processStatus"></div>
@@ -182,9 +206,34 @@
     const btnDownload = document.getElementById('btnDownload');
     const processStatus = document.getElementById('processStatus');
     const optQuality = document.getElementById('optQuality');
-    const options = document.querySelectorAll('.btn-option');
+    const options = document.querySelectorAll('.btn-option:not(#qualityBtn)');
     
+    // Переключение кнопок настроек
     options.forEach(btn => btn.addEventListener('click', () => btn.classList.toggle('active')));
+
+    // Логика выпадающего списка качества
+    const qualityBtn = document.getElementById('qualityBtn');
+    const qualityDropdown = document.getElementById('qualityDropdown');
+    const qualityOptions = qualityDropdown.querySelectorAll('div');
+    let selectedQualityWidth = 300; // По умолчанию 720p
+
+    qualityBtn.addEventListener('click', () => qualityDropdown.classList.toggle('show'));
+
+    qualityOptions.forEach(option => {
+        option.addEventListener('click', (e) => {
+            selectedQualityWidth = parseInt(e.target.getAttribute('data-val'));
+            const label = e.target.getAttribute('data-label');
+            qualityBtn.innerText = `Выбрать качество: ${label} ▼`;
+            qualityDropdown.classList.remove('show');
+        });
+    });
+
+    // Закрытие меню при клике вне его
+    window.addEventListener('click', (e) => {
+        if (!qualityBtn.contains(e.target) && !qualityDropdown.contains(e.target)) {
+            qualityDropdown.classList.remove('show');
+        }
+    });
 
     let currentGifUrl = '';
     let isProcessing = false;
@@ -230,7 +279,7 @@
                 let r = data[j], g = data[j+1], b = data[j+2];
                 let diff = Math.sqrt(Math.pow(r - bgR, 2) + Math.pow(g - bgG, 2) + Math.pow(b - bgB, 2));
                 if (diff < tolerance) {
-                    data[j+3] = 0; // Прозрачность для предпросмотра
+                    data[j+3] = 0; 
                 }
             }
             liveCtx.putImageData(frame, 0, 0);
@@ -249,16 +298,22 @@
         emptyText.style.display = 'inline';
         emptyText.innerText = 'Подготовка магии...';
         
-        const compressQualityActive = optQuality.classList.contains('active');
-        const MAX_WIDTH = 400; 
-        const fps = compressQualityActive ? 12 : 15; 
+        // Умное сжатие для обеспечения веса до 5 МБ
+        const forceCompression = optQuality.classList.contains('active');
+        
+        // Чем выше разрешение, тем ниже мы делаем FPS, чтобы не превысить 5 МБ
+        let fps = 12; 
+        if (selectedQualityWidth >= 600) fps = 8; // Для 2K и выше режем частоту кадров
+        if (selectedQualityWidth >= 800) fps = 5; // Для 4K и 8K делаем жесткое сжатие
+        if (!forceCompression) fps += 3; // Если кнопка сжатия выключена, делаем чуть плавнее
         
         let width = hiddenVideo.videoWidth;
         let height = hiddenVideo.videoHeight;
         
-        if (width > MAX_WIDTH) {
-            height = Math.floor(height * (MAX_WIDTH / width));
-            width = MAX_WIDTH;
+        // Применяем выбранное качество
+        if (width > selectedQualityWidth) {
+            height = Math.floor(height * (selectedQualityWidth / width));
+            width = selectedQualityWidth;
         }
 
         const processCanvas = document.getElementById('processCanvas');
@@ -267,20 +322,20 @@
         processCanvas.height = height;
 
         const duration = hiddenVideo.duration;
-        const totalFrames = Math.floor((duration > 7 ? 7 : duration) * fps); 
+        // Ограничиваем длину при огромном разрешении, чтобы браузер не лопнул
+        let maxSeconds = (selectedQualityWidth >= 800) ? 4 : 7; 
+        const totalFrames = Math.floor((duration > maxSeconds ? maxSeconds : duration) * fps); 
 
-        // Трюк для работы gif.js без серверов (в одном файле)
         const workerBlob = new Blob([`importScripts('https://cdnjs.cloudflare.com/ajax/libs/gif.js/0.2.0/gif.worker.js');`], { type: 'application/javascript' });
         const workerUrl = URL.createObjectURL(workerBlob);
 
-        // Настройка упаковщика
         const gif = new GIF({
             workers: 2,
-            quality: 10,
+            quality: forceCompression ? 20 : 10, // quality 20 = сильное сжатие цветов для < 5MB
             width: width,
             height: height,
             workerScript: workerUrl,
-            transparent: 0xFF00FF // Говорим упаковщику, что пурпурный цвет = полная прозрачность!
+            transparent: 0xFF00FF 
         });
 
         processStatus.innerText = `Анализ пространства (0 / ${totalFrames})...`;
@@ -300,7 +355,6 @@
                 let r = data[j], g = data[j+1], b = data[j+2];
                 let diff = Math.sqrt(Math.pow(r - bgR, 2) + Math.pow(g - bgG, 2) + Math.pow(b - bgB, 2));
                 if (diff < tolerance) {
-                    // Заменяем фон на пурпурный
                     data[j] = 255;   
                     data[j+1] = 0;   
                     data[j+2] = 255; 
@@ -309,17 +363,14 @@
             }
             pCtx.putImageData(frameData, 0, 0);
             
-            // Добавляем кадр
             gif.addFrame(pCtx, {copy: true, delay: 1000 / fps});
             processStatus.innerText = `Анализ пространства (${i} / ${totalFrames})...`;
         }
 
-        // Обновляем текст в процессе сборки
         gif.on('progress', function(p) {
             processStatus.innerText = 'Сборка артефакта: ' + Math.round(p * 100) + '%...';
         });
 
-        // Когда GIF готова
         gif.on('finished', function(blob) {
             currentGifUrl = URL.createObjectURL(blob);
             
@@ -330,7 +381,9 @@
             btnProcess.style.display = 'none';
             btnDownload.style.display = 'block';
             
-            processStatus.innerText = 'Готово! Скачайте GIF и перетащите в Genially.';
+            // Показываем примерный вес готового файла
+            let mbSize = (blob.size / (1024 * 1024)).toFixed(1);
+            processStatus.innerText = `Готово! Вес: ~${mbSize} МБ. Скачайте и перетащите в Genially.`;
             processStatus.style.color = '#4ade80';
             
             btnProcess.disabled = false;
@@ -354,7 +407,7 @@
     btnDownload.addEventListener('click', () => {
         const link = document.createElement('a');
         link.href = currentGifUrl;
-        link.download = 'magic_character.gif';
+        link.download = 'genially_transparent.gif';
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
