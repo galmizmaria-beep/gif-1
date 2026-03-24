@@ -4,8 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Scret of Cdhuhu - GIF Editor</title>
-    <!-- Библиотека для GIF -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/gifshot/0.3.2/gifshot.min.js"></script>
+    <!-- Подключаем профессиональную библиотеку gif.js -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gif.js/0.2.0/gif.js"></script>
     <style>
         /* Основной мистический/космический стиль */
         @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@600&family=Jost:wght@300;400;500&display=swap');
@@ -13,7 +13,7 @@
         body {
             margin: 0;
             padding: 0;
-            background: #0f0518; /* Темно-фиолетовый фон */
+            background: #0f0518;
             background-image: radial-gradient(circle at 10% 20%, rgba(67, 24, 107, 0.4) 0%, transparent 40%),
                               radial-gradient(circle at 90% 80%, rgba(93, 31, 148, 0.3) 0%, transparent 40%);
             color: #e0d5ed;
@@ -50,26 +50,9 @@
             text-transform: uppercase;
         }
 
-        /* Левая панель - Управление */
-        .left-panel {
-            display: flex;
-            flex-direction: column;
-            gap: 25px;
-        }
-
-        .panel-box {
-            background: rgba(20, 8, 38, 0.7);
-            padding: 25px;
-            border-radius: 15px;
-            border: 1px solid rgba(138, 75, 206, 0.2);
-        }
-
-        /* Стилизация загрузки */
-        .upload-wrapper {
-            display: flex;
-            align-items: center;
-            gap: 15px;
-        }
+        .left-panel { display: flex; flex-direction: column; gap: 25px; }
+        .panel-box { background: rgba(20, 8, 38, 0.7); padding: 25px; border-radius: 15px; border: 1px solid rgba(138, 75, 206, 0.2); }
+        .upload-wrapper { display: flex; align-items: center; gap: 15px; }
 
         .btn-upload {
             background: linear-gradient(135deg, #a64dff, #6b21a8);
@@ -85,47 +68,18 @@
             transition: 0.3s;
             display: inline-block;
         }
-
         .btn-upload:hover { box-shadow: 0 0 25px rgba(166, 77, 255, 0.8); transform: scale(1.05); }
         input[type="file"] { display: none; }
         
-        #checkIcon {
-            color: #4ade80;
-            font-size: 24px;
-            opacity: 0;
-            transform: scale(0);
-            transition: 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-        }
+        #checkIcon { color: #4ade80; font-size: 24px; opacity: 0; transform: scale(0); transition: 0.3s; }
         #checkIcon.visible { opacity: 1; transform: scale(1); }
 
-        /* Ползунок */
         .slider-container label { display: block; margin-bottom: 10px; font-size: 15px; color: #cba4f0; }
-        input[type="range"] {
-            -webkit-appearance: none;
-            width: 100%;
-            height: 6px;
-            background: rgba(138, 75, 206, 0.3);
-            border-radius: 5px;
-            outline: none;
-        }
-        input[type="range"]::-webkit-slider-thumb {
-            -webkit-appearance: none;
-            width: 18px;
-            height: 18px;
-            border-radius: 50%;
-            background: #d8b4fe;
-            box-shadow: 0 0 10px #d8b4fe;
-            cursor: pointer;
-        }
+        input[type="range"] { -webkit-appearance: none; width: 100%; height: 6px; background: rgba(138, 75, 206, 0.3); border-radius: 5px; outline: none; }
+        input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; width: 18px; height: 18px; border-radius: 50%; background: #d8b4fe; box-shadow: 0 0 10px #d8b4fe; cursor: pointer; }
 
-        /* Правая панель - Предпросмотр и Действия */
-        .right-panel {
-            display: flex;
-            flex-direction: column;
-            gap: 20px;
-        }
+        .right-panel { display: flex; flex-direction: column; gap: 20px; }
 
-        /* Окно предпросмотра */
         .preview-box {
             position: relative;
             background: #000;
@@ -137,74 +91,31 @@
             align-items: center;
             justify-content: center;
             overflow: hidden;
-            /* Фон-шахматка для прозрачности */
             background-image: linear-gradient(45deg, #1a0b2e 25%, transparent 25%), linear-gradient(-45deg, #1a0b2e 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #1a0b2e 75%), linear-gradient(-45deg, transparent 75%, #1a0b2e 75%);
             background-size: 20px 20px;
             background-position: 0 0, 0 10px, 10px -10px, -10px 0px;
         }
 
-        /* Канвас для живого предпросмотра */
         #liveCanvas { max-width: 100%; max-height: 100%; z-index: 2; position: absolute; }
-        /* Итоговая гифка */
         #finalGif { max-width: 100%; max-height: 100%; z-index: 3; position: absolute; display: none; }
-        
         .empty-text { position: absolute; color: rgba(203, 164, 240, 0.5); z-index: 1; font-style: italic; }
 
-        /* Опции (переключатели) */
-        .options-grid {
-            display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 10px;
-        }
-
-        .btn-option {
-            background: rgba(138, 75, 206, 0.1);
-            border: 1px solid rgba(138, 75, 206, 0.4);
-            color: #d8b4fe;
-            padding: 10px;
-            border-radius: 8px;
-            cursor: pointer;
-            font-family: inherit;
-            font-size: 13px;
-            transition: 0.3s;
-        }
+        .options-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+        .btn-option { background: rgba(138, 75, 206, 0.1); border: 1px solid rgba(138, 75, 206, 0.4); color: #d8b4fe; padding: 10px; border-radius: 8px; cursor: pointer; font-family: inherit; font-size: 13px; transition: 0.3s; }
         .btn-option:hover { background: rgba(138, 75, 206, 0.3); }
         .btn-option.active { background: rgba(183, 102, 255, 0.5); border-color: #d8b4fe; box-shadow: 0 0 10px rgba(183, 102, 255, 0.5); color: #fff;}
 
-        /* Главные кнопки */
-        .btn-main {
-            background: linear-gradient(90deg, #d946ef, #8b5cf6);
-            border: none;
-            color: white;
-            padding: 15px;
-            font-size: 16px;
-            border-radius: 10px;
-            cursor: pointer;
-            text-transform: uppercase;
-            font-weight: bold;
-            box-shadow: 0 0 20px rgba(217, 70, 239, 0.4);
-            transition: 0.3s;
-            margin-top: 10px;
-        }
+        .btn-main { background: linear-gradient(90deg, #d946ef, #8b5cf6); border: none; color: white; padding: 15px; font-size: 16px; border-radius: 10px; cursor: pointer; text-transform: uppercase; font-weight: bold; box-shadow: 0 0 20px rgba(217, 70, 239, 0.4); transition: 0.3s; margin-top: 10px; }
         .btn-main:hover { filter: brightness(1.2); box-shadow: 0 0 30px rgba(217, 70, 239, 0.7); }
         .btn-main:disabled { background: #4b365e; color: #888; cursor: not-allowed; box-shadow: none; }
 
-        .btn-download {
-            background: #10b981; /* Зеленоватый */
-            box-shadow: 0 0 20px rgba(16, 185, 129, 0.4);
-            display: none; /* Скрыта до готовности */
-        }
+        .btn-download { background: #10b981; box-shadow: 0 0 20px rgba(16, 185, 129, 0.4); display: none; }
         .btn-download:hover { background: #059669; box-shadow: 0 0 30px rgba(16, 185, 129, 0.7); }
 
         #processStatus { text-align: center; color: #fbbf24; font-size: 14px; height: 20px; }
-
-        /* Скрытое видео для обработки */
         #hiddenVideo { display: none; }
 
-        /* Адаптивность */
-        @media(max-width: 768px) {
-            .app-container { grid-template-columns: 1fr; }
-        }
+        @media(max-width: 768px) { .app-container { grid-template-columns: 1fr; } }
     </style>
 </head>
 <body>
@@ -256,7 +167,6 @@
 <canvas id="processCanvas" style="display:none;"></canvas>
 
 <script>
-    // Элементы DOM
     const videoInput = document.getElementById('videoInput');
     const checkIcon = document.getElementById('checkIcon');
     const toleranceSlider = document.getElementById('tolerance');
@@ -271,30 +181,21 @@
     const btnProcess = document.getElementById('btnProcess');
     const btnDownload = document.getElementById('btnDownload');
     const processStatus = document.getElementById('processStatus');
-    
-    // Кнопки-настройки 
     const optQuality = document.getElementById('optQuality');
     const options = document.querySelectorAll('.btn-option');
     
-    options.forEach(btn => {
-        btn.addEventListener('click', () => btn.classList.toggle('active'));
-    });
+    options.forEach(btn => btn.addEventListener('click', () => btn.classList.toggle('active')));
 
-    let currentGifBase64 = '';
+    let currentGifUrl = '';
     let isProcessing = false;
 
-    // Обновление цифры ползунка
-    toleranceSlider.addEventListener('input', (e) => {
-        tolValue.innerText = e.target.value;
-    });
+    toleranceSlider.addEventListener('input', (e) => tolValue.innerText = e.target.value);
 
-    // 1. ЗАГРУЗКА ВИДЕО И ЖИВОЙ ПРЕДПРОСМОТР
+    // 1. ЗАГРУЗКА И ПРЕДПРОСМОТР
     videoInput.addEventListener('change', (e) => {
         if (!e.target.files.length) return;
         
         const file = e.target.files[0];
-        const fileURL = URL.createObjectURL(file);
-        
         checkIcon.classList.add('visible');
         emptyText.style.display = 'none';
         finalGif.style.display = 'none';
@@ -303,7 +204,7 @@
         btnProcess.style.display = 'block';
         processStatus.innerText = '';
         
-        hiddenVideo.src = fileURL;
+        hiddenVideo.src = URL.createObjectURL(file);
         
         hiddenVideo.onloadedmetadata = () => {
             liveCanvas.width = hiddenVideo.videoWidth;
@@ -313,7 +214,7 @@
         };
     });
 
-    // Функция живого предпросмотра
+    // Живой хромакей
     function renderLivePreview() {
         if (isProcessing) return; 
         if (!hiddenVideo.paused && !hiddenVideo.ended) {
@@ -329,7 +230,7 @@
                 let r = data[j], g = data[j+1], b = data[j+2];
                 let diff = Math.sqrt(Math.pow(r - bgR, 2) + Math.pow(g - bgG, 2) + Math.pow(b - bgB, 2));
                 if (diff < tolerance) {
-                    data[j+3] = 0; 
+                    data[j+3] = 0; // Прозрачность для предпросмотра
                 }
             }
             liveCtx.putImageData(frame, 0, 0);
@@ -337,7 +238,7 @@
         requestAnimationFrame(renderLivePreview);
     }
 
-    // 2. ОБРАБОТКА И СОЗДАНИЕ GIF
+    // 2. ОБРАБОТКА (Используем профессиональный gif.js)
     btnProcess.addEventListener('click', async () => {
         if (!videoInput.files.length) return alert('Сначала загрузите видео!');
         
@@ -346,12 +247,10 @@
         hiddenVideo.pause(); 
         liveCanvas.style.display = 'none';
         emptyText.style.display = 'inline';
-        emptyText.innerText = 'Идет магия звезд...';
+        emptyText.innerText = 'Подготовка магии...';
         
-        // Поскольку теперь мы скачиваем файл, можем сделать качество выше
         const compressQualityActive = optQuality.classList.contains('active');
-        
-        const MAX_WIDTH = 400; // Разрешение увеличено для лучшего качества
+        const MAX_WIDTH = 400; 
         const fps = compressQualityActive ? 12 : 15; 
         
         let width = hiddenVideo.videoWidth;
@@ -369,7 +268,20 @@
 
         const duration = hiddenVideo.duration;
         const totalFrames = Math.floor((duration > 7 ? 7 : duration) * fps); 
-        const framesArray = [];
+
+        // Трюк для работы gif.js без серверов (в одном файле)
+        const workerBlob = new Blob([`importScripts('https://cdnjs.cloudflare.com/ajax/libs/gif.js/0.2.0/gif.worker.js');`], { type: 'application/javascript' });
+        const workerUrl = URL.createObjectURL(workerBlob);
+
+        // Настройка упаковщика
+        const gif = new GIF({
+            workers: 2,
+            quality: 10,
+            width: width,
+            height: height,
+            workerScript: workerUrl,
+            transparent: 0xFF00FF // Говорим упаковщику, что пурпурный цвет = полная прозрачность!
+        });
 
         processStatus.innerText = `Анализ пространства (0 / ${totalFrames})...`;
 
@@ -377,13 +289,10 @@
             const time = i / fps;
             await seekVideo(hiddenVideo, time);
             
-            pCtx.fillStyle = '#FF00FF'; 
-            pCtx.fillRect(0, 0, width, height);
-            
             pCtx.drawImage(hiddenVideo, 0, 0, width, height);
             let frameData = pCtx.getImageData(0, 0, width, height);
-            
             let data = frameData.data;
+            
             let bgR = data[0], bgG = data[1], bgB = data[2];
             let tolerance = parseInt(toleranceSlider.value);
 
@@ -391,6 +300,7 @@
                 let r = data[j], g = data[j+1], b = data[j+2];
                 let diff = Math.sqrt(Math.pow(r - bgR, 2) + Math.pow(g - bgG, 2) + Math.pow(b - bgB, 2));
                 if (diff < tolerance) {
+                    // Заменяем фон на пурпурный
                     data[j] = 255;   
                     data[j+1] = 0;   
                     data[j+2] = 255; 
@@ -399,39 +309,35 @@
             }
             pCtx.putImageData(frameData, 0, 0);
             
-            framesArray.push(processCanvas.toDataURL('image/png', 1.0));
+            // Добавляем кадр
+            gif.addFrame(pCtx, {copy: true, delay: 1000 / fps});
             processStatus.innerText = `Анализ пространства (${i} / ${totalFrames})...`;
         }
 
-        processStatus.innerText = 'Сборка артефакта (GIF)...';
+        // Обновляем текст в процессе сборки
+        gif.on('progress', function(p) {
+            processStatus.innerText = 'Сборка артефакта: ' + Math.round(p * 100) + '%...';
+        });
 
-        gifshot.createGIF({
-            images: framesArray,
-            gifWidth: width,
-            gifHeight: height,
-            interval: 1 / fps,
-            numWorkers: 2,
-            transparentHex: '#FF00FF' 
-        }, function(obj) {
-            if(!obj.error) {
-                currentGifBase64 = obj.image;
-                
-                emptyText.style.display = 'none';
-                finalGif.src = currentGifBase64;
-                finalGif.style.display = 'block';
-                
-                btnProcess.style.display = 'none';
-                btnDownload.style.display = 'block';
-                // Подсказка пользователю
-                processStatus.innerText = 'Готово! Скачайте GIF и перетащите в Genially.';
-                processStatus.style.color = '#4ade80';
-            } else {
-                processStatus.innerText = 'Ошибка создания артефакта.';
-                processStatus.style.color = '#ef4444';
-            }
+        // Когда GIF готова
+        gif.on('finished', function(blob) {
+            currentGifUrl = URL.createObjectURL(blob);
+            
+            emptyText.style.display = 'none';
+            finalGif.src = currentGifUrl;
+            finalGif.style.display = 'block';
+            
+            btnProcess.style.display = 'none';
+            btnDownload.style.display = 'block';
+            
+            processStatus.innerText = 'Готово! Скачайте GIF и перетащите в Genially.';
+            processStatus.style.color = '#4ade80';
+            
             btnProcess.disabled = false;
             isProcessing = false;
         });
+
+        gif.render();
     });
 
     function seekVideo(video, time) {
@@ -444,16 +350,16 @@
         });
     }
 
-    // 3. СКАЧИВАНИЕ ФАЙЛА ВМЕСТО КОПИРОВАНИЯ КОДА
+    // 3. СКАЧИВАНИЕ ФАЙЛА
     btnDownload.addEventListener('click', () => {
         const link = document.createElement('a');
-        link.href = currentGifBase64;
-        link.download = 'magic_character.gif'; // Имя файла
+        link.href = currentGifUrl;
+        link.download = 'magic_character.gif';
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
         
-        processStatus.innerText = 'Файл скачан! Теперь загрузите его в Genially (раздел Image).';
+        processStatus.innerText = 'Файл скачан! Теперь перетащите его в Genially.';
     });
 
 </script>
