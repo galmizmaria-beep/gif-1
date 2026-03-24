@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Scret of Cdhuhu - Video to GIF</title>
+    <title>GIF Редактор</title>
     <!-- Библиотека для GIF -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/gifshot/0.3.2/gifshot.min.js"></script>
     <style>
@@ -209,7 +209,7 @@
 <body>
 
 <div class="app-container">
-    <h1>Scret of Cdhuhu</h1>
+    <h1>GIF Редактор</h1>
 
     <!-- Левая панель -->
     <div class="left-panel">
@@ -314,31 +314,28 @@
         };
     });
 
-    // Функция живого предпросмотра (применяет Хромакей прямо к играющему видео)
+    // Функция живого предпросмотра (прозрачность делается альфа-каналом 0)
     function renderLivePreview() {
-        if (isProcessing) return; // Останавливаем живой просмотр, если начался рендер GIF
+        if (isProcessing) return; 
         if (!hiddenVideo.paused && !hiddenVideo.ended) {
+            liveCtx.clearRect(0, 0, liveCanvas.width, liveCanvas.height);
             liveCtx.drawImage(hiddenVideo, 0, 0, liveCanvas.width, liveCanvas.height);
             let frame = liveCtx.getImageData(0, 0, liveCanvas.width, liveCanvas.height);
-            applyChromaKey(frame);
+            
+            let data = frame.data;
+            let bgR = data[0], bgG = data[1], bgB = data[2];
+            let tolerance = parseInt(toleranceSlider.value);
+
+            for (let j = 0; j < data.length; j += 4) {
+                let r = data[j], g = data[j+1], b = data[j+2];
+                let diff = Math.sqrt(Math.pow(r - bgR, 2) + Math.pow(g - bgG, 2) + Math.pow(b - bgB, 2));
+                if (diff < tolerance) {
+                    data[j+3] = 0; // Для визуального просмотра делаем прозрачным
+                }
+            }
             liveCtx.putImageData(frame, 0, 0);
         }
         requestAnimationFrame(renderLivePreview);
-    }
-
-    // Логика удаления фона (берет пиксель 5x5 из левого верхнего угла как образец фона)
-    function applyChromaKey(frameData) {
-        let data = frameData.data;
-        let bgR = data[0], bgG = data[1], bgB = data[2];
-        let tolerance = parseInt(toleranceSlider.value);
-
-        for (let j = 0; j < data.length; j += 4) {
-            let r = data[j], g = data[j+1], b = data[j+2];
-            let diff = Math.sqrt(Math.pow(r - bgR, 2) + Math.pow(g - bgG, 2) + Math.pow(b - bgB, 2));
-            if (diff < tolerance) {
-                data[j+3] = 0; // Альфа-канал в 0 (прозрачность)
-            }
-        }
     }
 
     // 2. ОБРАБОТКА И СОЗДАНИЕ GIF
@@ -356,8 +353,8 @@
         const compressCodeActive = optCode.classList.contains('active');
         const compressQualityActive = optQuality.classList.contains('active');
         
-        const MAX_WIDTH = compressCodeActive ? 200 : 300; // Меньше ширина - меньше код
-        const fps = compressQualityActive ? 10 : 15; // Сжатие без сильной потери
+        const MAX_WIDTH = compressCodeActive ? 200 : 300; 
+        const fps = compressQualityActive ? 10 : 15; 
         
         let width = hiddenVideo.videoWidth;
         let height = hiddenVideo.videoHeight;
@@ -373,7 +370,7 @@
         processCanvas.height = height;
 
         const duration = hiddenVideo.duration;
-        const totalFrames = Math.floor((duration > 5 ? 5 : duration) * fps); // Ограничиваем до 5 сек для стабильности
+        const totalFrames = Math.floor((duration > 5 ? 5 : duration) * fps); 
         const framesArray = [];
 
         processStatus.innerText = `Анализ пространства (0 / ${totalFrames})...`;
@@ -382,14 +379,33 @@
             const time = i / fps;
             await seekVideo(hiddenVideo, time);
             
+            // Важное исправление багов gifshot: заливаем фон ядовито-пурпурным цветом (Magenta #FF00FF)
+            pCtx.fillStyle = '#FF00FF'; 
+            pCtx.fillRect(0, 0, width, height);
+            
             pCtx.drawImage(hiddenVideo, 0, 0, width, height);
             let frameData = pCtx.getImageData(0, 0, width, height);
             
-            applyChromaKey(frameData); // Удаляем фон
+            // Логика удаления фона для рендера
+            let data = frameData.data;
+            let bgR = data[0], bgG = data[1], bgB = data[2];
+            let tolerance = parseInt(toleranceSlider.value);
+
+            for (let j = 0; j < data.length; j += 4) {
+                let r = data[j], g = data[j+1], b = data[j+2];
+                let diff = Math.sqrt(Math.pow(r - bgR, 2) + Math.pow(g - bgG, 2) + Math.pow(b - bgB, 2));
+                if (diff < tolerance) {
+                    // Перекрашиваем фон в пурпурный (Magenta), чтобы упаковщик понял, что это пустота
+                    data[j] = 255;   // R
+                    data[j+1] = 0;   // G
+                    data[j+2] = 255; // B
+                    data[j+3] = 255; // Alpha
+                }
+            }
             pCtx.putImageData(frameData, 0, 0);
             
-            // Используем сильное сжатие PNG кадра для уменьшения итогового веса
-            framesArray.push(processCanvas.toDataURL('image/png', 0.5));
+            // Сохраняем без потери качества, чтобы цвет не исказился
+            framesArray.push(processCanvas.toDataURL('image/png', 1.0));
             processStatus.innerText = `Анализ пространства (${i} / ${totalFrames})...`;
         }
 
@@ -401,17 +417,15 @@
             gifHeight: height,
             interval: 1 / fps,
             numWorkers: 2,
-            transparentHex: 'rgba(0,0,0,0)'
+            transparentHex: '#FF00FF' // Указываем упаковщику вырезать пурпурный цвет!
         }, function(obj) {
             if(!obj.error) {
                 currentGifBase64 = obj.image;
                 
-                // Показываем результат
                 emptyText.style.display = 'none';
                 finalGif.src = currentGifBase64;
                 finalGif.style.display = 'block';
                 
-                // Меняем кнопки
                 btnProcess.style.display = 'none';
                 btnCopy.style.display = 'block';
                 processStatus.innerText = 'Готово! Скопируйте код для Genially.';
@@ -435,16 +449,15 @@
         });
     }
 
-    // 3. КОПИРОВАНИЕ КОДА БЕЗ ТЕКСТОВОГО ПОЛЯ
+    // 3. КОПИРОВАНИЕ КОДА (Обернуто в HTML div для Genially)
     btnCopy.addEventListener('click', () => {
-        // Формируем HTML код для вставки в Genially
-        const geniallyCode = `<img src="${currentGifBase64}" style="width:100%; height:auto; background:transparent;" alt="gif">`;
+        // Оборачиваем в строгий HTML div, чтобы Genially точно принял код
+        const geniallyCode = `<div style="width:100%;text-align:center;"><img src="${currentGifBase64}" style="max-width:100%;height:auto;background:transparent;" alt="animation"></div>`;
         
-        // Копируем напрямую в буфер обмена браузера
         navigator.clipboard.writeText(geniallyCode).then(() => {
             const originalText = btnCopy.innerText;
             btnCopy.innerText = '✓ СКОПИРОВАНО!';
-            btnCopy.style.background = '#059669'; // Темно-зеленый
+            btnCopy.style.background = '#059669'; 
             
             setTimeout(() => {
                 btnCopy.innerText = originalText;
