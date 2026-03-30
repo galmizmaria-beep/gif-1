@@ -296,7 +296,6 @@
     let currentGifUrl = '';
     let isProcessing = false;
 
-    // Предварительно считаем квадрат tolerance для оптимизации
     let toleranceSq = 45 * 45; 
     toleranceSlider.addEventListener('input', (e) => {
         tolValue.innerText = e.target.value;
@@ -335,7 +334,6 @@
             let data = frame.data;
             let bgR = data[0], bgG = data[1], bgB = data[2];
 
-            // ОПТИМИЗАЦИЯ: Убрали Math.sqrt, что сильно разгружает браузер
             for (let j = 0; j < data.length; j += 4) {
                 let r = data[j], g = data[j+1], b = data[j+2];
                 let diffSq = (r - bgR)*(r - bgR) + (g - bgG)*(g - bgG) + (b - bgB)*(b - bgB);
@@ -374,14 +372,10 @@
             gifQuality = 40; 
             if (gifFps > 4) gifFps -= 5; 
         }
-        if (gifFps < 4) gifFps = 4; // Минимальный порог
+        if (gifFps < 4) gifFps = 4; 
 
-        // ИСПРАВЛЕНИЕ: Точный расчет времени по спецификации GIF
-        // GIF понимает задержку только кратную 10мс (1/100 секунды)
         let targetDelayMs = 1000 / gifFps; 
         let gifDelayMs = Math.round(targetDelayMs / 10) * 10; 
-        
-        // Пересчитываем реальный шаг по времени в видео, чтобы скорость была 1 в 1 как у оригинала
         let timeStep = gifDelayMs / 1000; 
 
         let width = hiddenVideo.videoWidth;
@@ -399,7 +393,6 @@
 
         const duration = hiddenVideo.duration;
         const actualDuration = (duration > maxSeconds ? maxSeconds : duration);
-        // Считаем кадры используя точный шаг
         const totalFrames = Math.floor(actualDuration / timeStep); 
 
         const workerBlob = new Blob([`importScripts('https://cdnjs.cloudflare.com/ajax/libs/gif.js/0.2.0/gif.worker.js');`], { type: 'application/javascript' });
@@ -417,7 +410,6 @@
         processStatus.innerText = `Анализ пространства (0 / ${totalFrames})...`;
 
         for (let i = 0; i < totalFrames; i++) { 
-            // Используем timeStep, чтобы время видео и гифки не расходилось
             const time = i * timeStep; 
             await seekVideo(hiddenVideo, time);
             
@@ -427,7 +419,6 @@
             
             let bgR = data[0], bgG = data[1], bgB = data[2];
 
-            // Оптимизированный цикл удаления фона
             for (let j = 0; j < data.length; j += 4) {
                 let r = data[j], g = data[j+1], b = data[j+2];
                 let diffSq = (r - bgR)*(r - bgR) + (g - bgG)*(g - bgG) + (b - bgB)*(b - bgB);
@@ -440,7 +431,6 @@
             }
             pCtx.putImageData(frameData, 0, 0);
             
-            // Передаем точную округленную задержку
             gif.addFrame(pCtx, {copy: true, delay: gifDelayMs}); 
             processStatus.innerText = `Анализ пространства (${i + 1} / ${totalFrames})...`;
         }
@@ -474,24 +464,47 @@
             
             btnProcess.disabled = false;
             isProcessing = false;
+            
+            // Возобновляем предпросмотр если пользователь захочет загрузить новое видео
+            hiddenVideo.play();
+            renderLivePreview();
         });
 
         gif.render();
     });
 
-    // ИСПРАВЛЕНИЕ: Используем requestVideoFrameCallback для современной и точной синхронизации без тормозов
+    // ИСПРАВЛЕННАЯ ФУНКЦИЯ ПЕРЕМОТКИ ВИДЕО
     function seekVideo(video, time) {
         return new Promise((resolve) => {
+            // Если время уже совпадает (например на 0 секунде), событие seeked может не сработать
+            if (Math.abs(video.currentTime - time) < 0.001) {
+                setTimeout(resolve, 20); // Даем микро-паузу на обновление канваса
+                return;
+            }
+
+            let isResolved = false;
+
             const onSeeked = () => {
+                if(isResolved) return;
+                isResolved = true;
                 video.removeEventListener('seeked', onSeeked);
-                if ('requestVideoFrameCallback' in video) {
-                    video.requestVideoFrameCallback(() => resolve());
-                } else {
-                    requestAnimationFrame(() => requestAnimationFrame(resolve));
-                }
+                
+                // Используем setTimeout. Метод requestVideoFrameCallback 
+                // НЕ РАБОТАЕТ, когда видео поставлено на паузу!
+                setTimeout(resolve, 20); 
             };
+
             video.addEventListener('seeked', onSeeked);
             video.currentTime = time;
+
+            // Предохранитель (fallback): если браузер заглючил и не отдал событие seeked
+            setTimeout(() => {
+                if(!isResolved) {
+                    isResolved = true;
+                    video.removeEventListener('seeked', onSeeked);
+                    resolve();
+                }
+            }, 500); 
         });
     }
 
