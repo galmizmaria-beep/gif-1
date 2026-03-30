@@ -10,7 +10,6 @@
         /* Основной мистический/космический стиль */
         @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@600&family=Jost:wght@300;400;500&display=swap');
 
-        /* Изменили настройки body, чтобы окно могло скроллиться, если не влезает */
         body {
             margin: 0;
             padding: 15px;
@@ -27,7 +26,6 @@
             overflow-y: auto;
         }
 
-        /* Ужали контейнер */
         .app-container {
             width: 100%;
             max-width: 1000px;
@@ -102,14 +100,12 @@
         }
 
         #liveCanvas { max-width: 100%; max-height: 100%; z-index: 2; position: absolute; }
-        /* Добавили плавный переход для подсветки гифки */
         #finalGif { max-width: 100%; max-height: 100%; z-index: 3; position: absolute; display: none; transition: box-shadow 0.4s ease; border-radius: 8px; }
         .empty-text { position: absolute; color: rgba(203, 164, 240, 0.5); z-index: 1; font-style: italic; font-size: 14px;}
 
-        /* Обновленные стили для сетки опций, чтобы вместить больше элементов */
         .options-grid { 
             display: grid; 
-            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); /* Адаптивная сетка */
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
             gap: 10px; 
         }
         .btn-option { 
@@ -127,11 +123,7 @@
         .btn-option:hover { background: rgba(138, 75, 206, 0.3); }
         .btn-option.active { background: rgba(183, 102, 255, 0.5); border-color: #d8b4fe; box-shadow: 0 0 10px rgba(183, 102, 255, 0.5); color: #fff;}
 
-        /* СТИЛИ ВЫПАДАЮЩИХ МЕНЮ */
-        .dropdown-wrapper { 
-            position: relative; 
-            /* grid-column: 1 / -1; -- УДАЛЕНО: позволяет элементам располагаться рядом */
-        }
+        .dropdown-wrapper { position: relative; }
         .dropdown-content {
             display: none; 
             position: absolute; 
@@ -176,7 +168,6 @@
 <div class="app-container">
     <h1>GIF Редактор</h1>
 
-    <!-- Левая панель -->
     <div class="left-panel">
         <div class="panel-box">
             <div class="upload-wrapper">
@@ -195,7 +186,6 @@
         </div>
     </div>
 
-    <!-- Правая панель -->
     <div class="right-panel">
         <div class="preview-box">
             <span class="empty-text" id="emptyText">Предпросмотр...</span>
@@ -206,7 +196,6 @@
         <div class="options-grid">
             <button class="btn-option active" id="optConvert">Конвертировать видео в гиф</button>
             
-            <!-- Выпадающее меню разрешения (ранее "качества") -->
             <div class="dropdown-wrapper">
                 <button class="btn-option" id="resolutionBtn" style="width: 100%;">Разрешение: 720p ▲</button>
                 <div class="dropdown-content" id="resolutionDropdown">
@@ -218,7 +207,6 @@
                 </div>
             </div>
 
-            <!-- Выпадающее меню сжатия -->
             <div class="dropdown-wrapper">
                 <button class="btn-option" id="compressionBtn" style="width: 100%;">Сжатие: Без сжатия ▲</button>
                 <div class="dropdown-content" id="compressionDropdown">
@@ -236,7 +224,6 @@
     </div>
 </div>
 
-<!-- Скрытые элементы для расчетов -->
 <video id="hiddenVideo" muted playsinline loop></video>
 <canvas id="processCanvas" style="display:none;"></canvas>
 
@@ -255,21 +242,19 @@
     const btnProcess = document.getElementById('btnProcess');
     const btnDownload = document.getElementById('btnDownload');
     const processStatus = document.getElementById('processStatus');
-    const optConvert = document.getElementById('optConvert'); // Кнопка "Конвертировать видео в гиф"
+    const optConvert = document.getElementById('optConvert');
 
-    // Переключение класса 'active' для кнопки 'optConvert' (если это необходимо)
     optConvert.addEventListener('click', () => optConvert.classList.toggle('active'));
 
-    // Логика выпадающего списка разрешения (бывший "качество")
     const resolutionBtn = document.getElementById('resolutionBtn');
     const resolutionDropdown = document.getElementById('resolutionDropdown');
     const resolutionOptions = resolutionDropdown.querySelectorAll('div');
-    let selectedQualityWidth = 300; // По умолчанию 720p
+    let selectedQualityWidth = 300; 
 
     resolutionBtn.addEventListener('click', (event) => {
-        event.stopPropagation(); // Предотвращаем закрытие при клике по кнопке
+        event.stopPropagation();
         resolutionDropdown.classList.toggle('show');
-        compressionDropdown.classList.remove('show'); // Закрываем другое меню
+        compressionDropdown.classList.remove('show');
     });
     resolutionOptions.forEach(option => {
         option.addEventListener('click', (e) => {
@@ -280,16 +265,15 @@
         });
     });
 
-    // Логика выпадающего списка сжатия (НОВОЕ)
     const compressionBtn = document.getElementById('compressionBtn');
     const compressionDropdown = document.getElementById('compressionDropdown');
     const compressionOptions = compressionDropdown.querySelectorAll('div');
-    let selectedCompressionTarget = 0; // 0 для без сжатия, 5 для <5МБ, 10 для <10МБ
+    let selectedCompressionTarget = 0; 
 
     compressionBtn.addEventListener('click', (event) => {
-        event.stopPropagation(); // Предотвращаем закрытие при клике по кнопке
+        event.stopPropagation();
         compressionDropdown.classList.toggle('show');
-        resolutionDropdown.classList.remove('show'); // Закрываем другое меню
+        resolutionDropdown.classList.remove('show');
     });
     compressionOptions.forEach(option => {
         option.addEventListener('click', (e) => {
@@ -300,7 +284,6 @@
         });
     });
 
-    // Закрытие меню при клике вне его
     window.addEventListener('click', (e) => {
         if (!resolutionBtn.contains(e.target) && !resolutionDropdown.contains(e.target)) {
             resolutionDropdown.classList.remove('show');
@@ -315,7 +298,6 @@
 
     toleranceSlider.addEventListener('input', (e) => tolValue.innerText = e.target.value);
 
-    // 1. ЗАГРУЗКА И ПРЕДПРОСМОТР
     videoInput.addEventListener('change', (e) => {
         if (!e.target.files.length) return;
         
@@ -338,7 +320,6 @@
         };
     });
 
-    // Живой хромакей
     function renderLivePreview() {
         if (isProcessing) return; 
         if (!hiddenVideo.paused && !hiddenVideo.ended) {
@@ -362,7 +343,6 @@
         requestAnimationFrame(renderLivePreview);
     }
 
-    // 2. ОБРАБОТКА
     btnProcess.addEventListener('click', async () => {
         if (!videoInput.files.length) return alert('Сначала загрузите видео!');
         
@@ -373,29 +353,24 @@
         emptyText.style.display = 'inline';
         emptyText.innerText = 'Подготовка магии...';
         
-        // --- НОВАЯ ЛОГИКА ДЛЯ КАЧЕСТВА И FPS В ЗАВИСИМОСТИ ОТ ВЫБРАННОГО СЖАТИЯ ---
-        let gifQuality = 10; // По умолчанию: высокое качество, минимальное сжатие
-        let gifFps = 15;     // Базовый FPS
-        let maxSeconds = 7;  // Базовая максимальная длительность
+        let gifQuality = 10; 
+        let gifFps = 15;     
+        let maxSeconds = 7;  
 
-        // Корректировка базового FPS и длительности в зависимости от выбранной ширины разрешения
         if (selectedQualityWidth >= 450) { gifFps = 12; }
         if (selectedQualityWidth >= 600) { gifFps = 8; maxSeconds = 6; }
         if (selectedQualityWidth >= 800) { gifFps = 6; maxSeconds = 5; }
-        if (selectedQualityWidth >= 1000) { gifFps = 4; maxSeconds = 4; } // Максимальное разрешение, самый низкий базовый FPS и короткая длительность
+        if (selectedQualityWidth >= 1000) { gifFps = 4; maxSeconds = 4; } 
 
-        // Корректировка качества и FPS в зависимости от целевого сжатия
-        if (selectedCompressionTarget === 10) { // Цель < 10 МБ
-            gifQuality = 25; // Умеренное сжатие
-            if (gifFps > 5) gifFps -= 3; // Уменьшаем FPS
-        } else if (selectedCompressionTarget === 5) { // Цель < 5 МБ
-            gifQuality = 40; // Сильное сжатие
-            if (gifFps > 4) gifFps -= 5; // Более агрессивное уменьшение FPS
-            if (gifFps < 4) gifFps = 4; // Гарантируем минимальный FPS
+        if (selectedCompressionTarget === 10) { 
+            gifQuality = 25; 
+            if (gifFps > 5) gifFps -= 3; 
+        } else if (selectedCompressionTarget === 5) { 
+            gifQuality = 40; 
+            if (gifFps > 4) gifFps -= 5; 
+            if (gifFps < 4) gifFps = 4; 
         }
-        // Убедимся, что FPS не опускается ниже разумного минимума
         if (gifFps < 4) gifFps = 4;
-
 
         let width = hiddenVideo.videoWidth;
         let height = hiddenVideo.videoHeight;
@@ -412,14 +387,17 @@
 
         const duration = hiddenVideo.duration;
         const actualDuration = (duration > maxSeconds ? maxSeconds : duration);
-        const totalFrames = Math.floor(actualDuration * gifFps); // Используем рассчитанный gifFps
+        const totalFrames = Math.floor(actualDuration * gifFps); 
+        
+        // ИСПРАВЛЕНИЕ 1: Жестко округляем задержку для ровного воспроизведения без подергиваний
+        const frameDelay = Math.round(1000 / gifFps);
 
         const workerBlob = new Blob([`importScripts('https://cdnjs.cloudflare.com/ajax/libs/gif.js/0.2.0/gif.worker.js');`], { type: 'application/javascript' });
         const workerUrl = URL.createObjectURL(workerBlob);
 
         const gif = new GIF({
             workers: 2,
-            quality: gifQuality, // Используем рассчитанное качество
+            quality: gifQuality, 
             width: width,
             height: height,
             workerScript: workerUrl,
@@ -428,8 +406,8 @@
 
         processStatus.innerText = `Анализ пространства (0 / ${totalFrames})...`;
 
-        for (let i = 0; i < totalFrames; i++) { // Changed to < totalFrames to avoid one extra frame beyond duration
-            const time = i / gifFps; // Используем рассчитанный gifFps
+        for (let i = 0; i < totalFrames; i++) { 
+            const time = i / gifFps; 
             await seekVideo(hiddenVideo, time);
             
             pCtx.drawImage(hiddenVideo, 0, 0, width, height);
@@ -451,7 +429,8 @@
             }
             pCtx.putImageData(frameData, 0, 0);
             
-            gif.addFrame(pCtx, {copy: true, delay: 1000 / gifFps}); // Используем рассчитанный gifFps
+            // ИСПРАВЛЕНИЕ 2: Используем ровную заранее вычисленную задержку
+            gif.addFrame(pCtx, {copy: true, delay: frameDelay}); 
             processStatus.innerText = `Анализ пространства (${i + 1} / ${totalFrames})...`;
         }
 
@@ -469,18 +448,17 @@
             btnProcess.style.display = 'none';
             btnDownload.style.display = 'block';
             
-            let mbSize = (blob.size / (1024 * 1024)); // Получаем размер в МБ
+            let mbSize = (blob.size / (1024 * 1024)); 
             
             let statusText = `Готово! Вес: ~${mbSize.toFixed(1)} МБ.`;
             let statusColor = '#4ade80';
 
-            // Проверяем, удалось ли уложиться в целевой размер
             if (selectedCompressionTarget > 0 && mbSize > selectedCompressionTarget) {
                 statusText += `<br>⚠️ Не удалось уложиться в ${selectedCompressionTarget} МБ. Текущий вес ${mbSize.toFixed(1)} МБ. Возможно, стоит попробовать меньшее разрешение, более сильное сжатие или более короткое видео.`;
-                statusColor = '#fbbf24'; // Цвет предупреждения
+                statusColor = '#fbbf24'; 
             }
 
-            processStatus.innerHTML = statusText; // Используем innerHTML для переноса строк
+            processStatus.innerHTML = statusText; 
             processStatus.style.color = statusColor;
             
             btnProcess.disabled = false;
@@ -490,19 +468,20 @@
         gif.render();
     });
 
+    // ИСПРАВЛЕНИЕ 3: Ждем реальной отрисовки кадра браузером (чтобы не было дубликатов)
     function seekVideo(video, time) {
         return new Promise((resolve) => {
-            video.currentTime = time;
-            video.addEventListener('seeked', function onSeeked() {
+            const onSeeked = () => {
                 video.removeEventListener('seeked', onSeeked);
-                resolve();
-            });
+                // Двойной requestAnimationFrame гарантирует, что браузер точно отрисовал новый кадр
+                requestAnimationFrame(() => requestAnimationFrame(resolve));
+            };
+            video.addEventListener('seeked', onSeeked);
+            video.currentTime = time;
         });
     }
 
-    // 3. СКАЧИВАНИЕ ФАЙЛА (Адаптировано для работы внутри iframe/Genially)
     btnDownload.addEventListener('click', () => {
-        // 1. Пробуем стандартное скачивание (сработает вне песочницы Genially)
         const link = document.createElement('a');
         link.href = currentGifUrl;
         link.download = 'transparent_magic.gif';
@@ -510,13 +489,11 @@
         link.click();
         document.body.removeChild(link);
         
-        // 2. Инструкция для обхода блокировки Genially
         processStatus.innerHTML = '⚠️ Genially блокирует авто-скачивание.<br><b>НАЖМИТЕ ПРАВОЙ КНОПКОЙ МЫШИ</b> на гифку выше и выберите <b>"Сохранить картинку как..."</b>, либо перетащите её мышкой на слайд!';
         processStatus.style.color = '#fbbf24'; 
         processStatus.style.lineHeight = '1.4';
         processStatus.style.marginTop = '10px';
         
-        // 3. Добавляем эффект пульсации на саму картинку для привлечения внимания
         finalGif.style.boxShadow = '0 0 30px #4ade80, 0 0 50px #4ade80';
         setTimeout(() => {
             finalGif.style.boxShadow = 'none';
