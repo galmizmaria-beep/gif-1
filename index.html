@@ -296,7 +296,12 @@
     let currentGifUrl = '';
     let isProcessing = false;
 
-    toleranceSlider.addEventListener('input', (e) => tolValue.innerText = e.target.value);
+    // Предварительно считаем квадрат tolerance для оптимизации
+    let toleranceSq = 45 * 45; 
+    toleranceSlider.addEventListener('input', (e) => {
+        tolValue.innerText = e.target.value;
+        toleranceSq = e.target.value * e.target.value; 
+    });
 
     videoInput.addEventListener('change', (e) => {
         if (!e.target.files.length) return;
@@ -329,12 +334,12 @@
             
             let data = frame.data;
             let bgR = data[0], bgG = data[1], bgB = data[2];
-            let tolerance = parseInt(toleranceSlider.value);
 
+            // ОПТИМИЗАЦИЯ: Убрали Math.sqrt, что сильно разгружает браузер
             for (let j = 0; j < data.length; j += 4) {
                 let r = data[j], g = data[j+1], b = data[j+2];
-                let diff = Math.sqrt(Math.pow(r - bgR, 2) + Math.pow(g - bgG, 2) + Math.pow(b - bgB, 2));
-                if (diff < tolerance) {
+                let diffSq = (r - bgR)*(r - bgR) + (g - bgG)*(g - bgG) + (b - bgB)*(b - bgB);
+                if (diffSq < toleranceSq) {
                     data[j+3] = 0; 
                 }
             }
@@ -368,9 +373,16 @@
         } else if (selectedCompressionTarget === 5) { 
             gifQuality = 40; 
             if (gifFps > 4) gifFps -= 5; 
-            if (gifFps < 4) gifFps = 4; 
         }
-        if (gifFps < 4) gifFps = 4;
+        if (gifFps < 4) gifFps = 4; // Минимальный порог
+
+        // ИСПРАВЛЕНИЕ: Точный расчет времени по спецификации GIF
+        // GIF понимает задержку только кратную 10мс (1/100 секунды)
+        let targetDelayMs = 1000 / gifFps; 
+        let gifDelayMs = Math.round(targetDelayMs / 10) * 10; 
+        
+        // Пересчитываем реальный шаг по времени в видео, чтобы скорость была 1 в 1 как у оригинала
+        let timeStep = gifDelayMs / 1000; 
 
         let width = hiddenVideo.videoWidth;
         let height = hiddenVideo.videoHeight;
@@ -387,10 +399,8 @@
 
         const duration = hiddenVideo.duration;
         const actualDuration = (duration > maxSeconds ? maxSeconds : duration);
-        const totalFrames = Math.floor(actualDuration * gifFps); 
-        
-        // ИСПРАВЛЕНИЕ 1: Жестко округляем задержку для ровного воспроизведения без подергиваний
-        const frameDelay = Math.round(1000 / gifFps);
+        // Считаем кадры используя точный шаг
+        const totalFrames = Math.floor(actualDuration / timeStep); 
 
         const workerBlob = new Blob([`importScripts('https://cdnjs.cloudflare.com/ajax/libs/gif.js/0.2.0/gif.worker.js');`], { type: 'application/javascript' });
         const workerUrl = URL.createObjectURL(workerBlob);
@@ -407,7 +417,8 @@
         processStatus.innerText = `Анализ пространства (0 / ${totalFrames})...`;
 
         for (let i = 0; i < totalFrames; i++) { 
-            const time = i / gifFps; 
+            // Используем timeStep, чтобы время видео и гифки не расходилось
+            const time = i * timeStep; 
             await seekVideo(hiddenVideo, time);
             
             pCtx.drawImage(hiddenVideo, 0, 0, width, height);
@@ -415,12 +426,12 @@
             let data = frameData.data;
             
             let bgR = data[0], bgG = data[1], bgB = data[2];
-            let tolerance = parseInt(toleranceSlider.value);
 
+            // Оптимизированный цикл удаления фона
             for (let j = 0; j < data.length; j += 4) {
                 let r = data[j], g = data[j+1], b = data[j+2];
-                let diff = Math.sqrt(Math.pow(r - bgR, 2) + Math.pow(g - bgG, 2) + Math.pow(b - bgB, 2));
-                if (diff < tolerance) {
+                let diffSq = (r - bgR)*(r - bgR) + (g - bgG)*(g - bgG) + (b - bgB)*(b - bgB);
+                if (diffSq < toleranceSq) {
                     data[j] = 255;   
                     data[j+1] = 0;   
                     data[j+2] = 255; 
@@ -429,8 +440,8 @@
             }
             pCtx.putImageData(frameData, 0, 0);
             
-            // ИСПРАВЛЕНИЕ 2: Используем ровную заранее вычисленную задержку
-            gif.addFrame(pCtx, {copy: true, delay: frameDelay}); 
+            // Передаем точную округленную задержку
+            gif.addFrame(pCtx, {copy: true, delay: gifDelayMs}); 
             processStatus.innerText = `Анализ пространства (${i + 1} / ${totalFrames})...`;
         }
 
@@ -454,7 +465,7 @@
             let statusColor = '#4ade80';
 
             if (selectedCompressionTarget > 0 && mbSize > selectedCompressionTarget) {
-                statusText += `<br>⚠️ Не удалось уложиться в ${selectedCompressionTarget} МБ. Текущий вес ${mbSize.toFixed(1)} МБ. Возможно, стоит попробовать меньшее разрешение, более сильное сжатие или более короткое видео.`;
+                statusText += `<br>⚠️ Не удалось уложиться в ${selectedCompressionTarget} МБ. Текущий вес ${mbSize.toFixed(1)} МБ.`;
                 statusColor = '#fbbf24'; 
             }
 
@@ -468,13 +479,16 @@
         gif.render();
     });
 
-    // ИСПРАВЛЕНИЕ 3: Ждем реальной отрисовки кадра браузером (чтобы не было дубликатов)
+    // ИСПРАВЛЕНИЕ: Используем requestVideoFrameCallback для современной и точной синхронизации без тормозов
     function seekVideo(video, time) {
         return new Promise((resolve) => {
             const onSeeked = () => {
                 video.removeEventListener('seeked', onSeeked);
-                // Двойной requestAnimationFrame гарантирует, что браузер точно отрисовал новый кадр
-                requestAnimationFrame(() => requestAnimationFrame(resolve));
+                if ('requestVideoFrameCallback' in video) {
+                    video.requestVideoFrameCallback(() => resolve());
+                } else {
+                    requestAnimationFrame(() => requestAnimationFrame(resolve));
+                }
             };
             video.addEventListener('seeked', onSeeked);
             video.currentTime = time;
