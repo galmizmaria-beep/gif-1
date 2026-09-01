@@ -78,6 +78,10 @@
         #checkIcon.visible { opacity: 1; transform: scale(1); }
 
         .slider-container label { display: block; margin-bottom: 8px; font-size: 14px; color: #cba4f0; }
+        .trim-row { display: grid; grid-template-columns: 1fr auto; gap: 10px; align-items: center; margin-top: 12px; }
+        .trim-row:first-of-type { margin-top: 0; }
+        .trim-time { min-width: 58px; text-align: right; color: #fff; font-variant-numeric: tabular-nums; font-size: 13px; }
+        .trim-hint { margin: 10px 0 0; color: #9c80b6; font-size: 11px; }
         input[type="range"] { -webkit-appearance: none; width: 100%; height: 6px; background: rgba(138, 75, 206, 0.3); border-radius: 5px; outline: none; }
         input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; width: 18px; height: 18px; border-radius: 50%; background: #d8b4fe; box-shadow: 0 0 10px #d8b4fe; cursor: pointer; }
 
@@ -172,7 +176,7 @@
         <div class="panel-box">
             <div class="upload-wrapper">
                 <label for="videoInput" class="btn-upload">Загрузить видео</label>
-                <input type="file" id="videoInput" accept="video/mp4,video/webm,video/mov">
+                <input type="file" id="videoInput" accept="video/mp4,video/webm,video/quicktime,.mov">
                 <span id="checkIcon">✅</span>
             </div>
             <p style="font-size: 11px; color: #9c80b6; margin-top: 10px; margin-bottom: 0;">* Рекомендуется до 5-7 секунд на однородном фоне.</p>
@@ -182,6 +186,21 @@
             <div class="slider-container">
                 <label>Сила удаления фона: <span id="tolValue">45</span></label>
                 <input type="range" id="tolerance" min="10" max="150" value="45">
+            </div>
+        </div>
+
+        <div class="panel-box" id="trimPanel" hidden>
+            <div class="slider-container">
+                <label>Обрезка видео</label>
+                <div class="trim-row">
+                    <input type="range" id="trimStart" min="0" max="0" value="0" step="0.1" aria-label="Начало фрагмента">
+                    <span class="trim-time" id="trimStartValue">0:00.0</span>
+                </div>
+                <div class="trim-row">
+                    <input type="range" id="trimEnd" min="0" max="0" value="0" step="0.1" aria-label="Конец фрагмента">
+                    <span class="trim-time" id="trimEndValue">0:00.0</span>
+                </div>
+                <p class="trim-hint">В GIF попадёт только фрагмент между этими отметками.</p>
             </div>
         </div>
     </div>
@@ -197,13 +216,12 @@
             <button class="btn-option active" id="optConvert">Конвертировать видео в гиф</button>
             
             <div class="dropdown-wrapper">
-                <button class="btn-option" id="resolutionBtn" style="width: 100%;">Разрешение: 720p ▲</button>
+                <button class="btn-option" id="resolutionBtn" style="width: 100%;">Качество: Среднее ▲</button>
                 <div class="dropdown-content" id="resolutionDropdown">
-                    <div data-val="300" data-label="720p">720p (Оптимально)</div>
-                    <div data-val="450" data-label="1080p">1080p (Высокое)</div>
-                    <div data-val="600" data-label="2K">2K (Ультра)</div>
-                    <div data-val="800" data-label="4K">4K (Тяжелое)</div>
-                    <div data-val="1000" data-label="8K">8K (Максимум)</div>
+                    <div data-val="320" data-label="Низкое">Низкое (320 px, 10 FPS)</div>
+                    <div data-val="480" data-label="Среднее">Среднее (480 px, 15 FPS)</div>
+                    <div data-val="720" data-label="Высокое">Высокое (720 px, 20 FPS)</div>
+                    <div data-val="1080" data-label="Максимальное">Максимальное (1080 px, 24 FPS)</div>
                 </div>
             </div>
 
@@ -232,6 +250,11 @@
     const checkIcon = document.getElementById('checkIcon');
     const toleranceSlider = document.getElementById('tolerance');
     const tolValue = document.getElementById('tolValue');
+    const trimPanel = document.getElementById('trimPanel');
+    const trimStart = document.getElementById('trimStart');
+    const trimEnd = document.getElementById('trimEnd');
+    const trimStartValue = document.getElementById('trimStartValue');
+    const trimEndValue = document.getElementById('trimEndValue');
     
     const hiddenVideo = document.getElementById('hiddenVideo');
     const liveCanvas = document.getElementById('liveCanvas');
@@ -249,7 +272,7 @@
     const resolutionBtn = document.getElementById('resolutionBtn');
     const resolutionDropdown = document.getElementById('resolutionDropdown');
     const resolutionOptions = resolutionDropdown.querySelectorAll('div');
-    let selectedQualityWidth = 300; 
+    let selectedQualityWidth = 480;
 
     resolutionBtn.addEventListener('click', (event) => {
         event.stopPropagation();
@@ -260,7 +283,7 @@
         option.addEventListener('click', (e) => {
             selectedQualityWidth = parseInt(e.target.getAttribute('data-val'));
             const label = e.target.getAttribute('data-label');
-            resolutionBtn.innerText = `Разрешение: ${label} ▲`;
+            resolutionBtn.innerText = `Качество: ${label} ▲`;
             resolutionDropdown.classList.remove('show');
         });
     });
@@ -294,7 +317,41 @@
     });
 
     let currentGifUrl = '';
+    let currentVideoUrl = '';
     let isProcessing = false;
+
+    function formatTime(seconds) {
+        const safeSeconds = Math.max(0, Number(seconds) || 0);
+        const minutes = Math.floor(safeSeconds / 60);
+        const rest = (safeSeconds % 60).toFixed(1).padStart(4, '0');
+        return `${minutes}:${rest}`;
+    }
+
+    function updateTrimValues(changedControl) {
+        const minGap = Math.min(0.1, Number(trimEnd.max));
+        if (changedControl === trimStart && Number(trimStart.value) > Number(trimEnd.value) - minGap) {
+            trimStart.value = Math.max(0, Number(trimEnd.value) - minGap);
+        }
+        if (changedControl === trimEnd && Number(trimEnd.value) < Number(trimStart.value) + minGap) {
+            trimEnd.value = Math.min(Number(trimEnd.max), Number(trimStart.value) + minGap);
+        }
+        trimStartValue.innerText = formatTime(trimStart.value);
+        trimEndValue.innerText = formatTime(trimEnd.value);
+    }
+
+    trimStart.addEventListener('input', () => {
+        updateTrimValues(trimStart);
+        hiddenVideo.currentTime = Number(trimStart.value);
+    });
+    trimEnd.addEventListener('input', () => {
+        updateTrimValues(trimEnd);
+        hiddenVideo.currentTime = Math.max(Number(trimStart.value), Number(trimEnd.value) - 0.05);
+    });
+    hiddenVideo.addEventListener('timeupdate', () => {
+        if (!isProcessing && Number(trimEnd.value) > Number(trimStart.value) && hiddenVideo.currentTime >= Number(trimEnd.value)) {
+            hiddenVideo.currentTime = Number(trimStart.value);
+        }
+    });
 
     let toleranceSq = 45 * 45; 
     toleranceSlider.addEventListener('input', (e) => {
@@ -314,9 +371,19 @@
         btnProcess.style.display = 'block';
         processStatus.innerText = '';
         
-        hiddenVideo.src = URL.createObjectURL(file);
+        if (currentVideoUrl) URL.revokeObjectURL(currentVideoUrl);
+        if (currentGifUrl) URL.revokeObjectURL(currentGifUrl);
+        currentVideoUrl = URL.createObjectURL(file);
+        hiddenVideo.src = currentVideoUrl;
         
         hiddenVideo.onloadedmetadata = () => {
+            const duration = Number.isFinite(hiddenVideo.duration) ? hiddenVideo.duration : 0;
+            trimStart.max = duration;
+            trimEnd.max = duration;
+            trimStart.value = 0;
+            trimEnd.value = duration;
+            trimPanel.hidden = false;
+            updateTrimValues();
             liveCanvas.width = hiddenVideo.videoWidth;
             liveCanvas.height = hiddenVideo.videoHeight;
             hiddenVideo.play();
@@ -356,14 +423,16 @@
         emptyText.style.display = 'inline';
         emptyText.innerText = 'Подготовка магии...';
         
-        let gifQuality = 10; 
-        let gifFps = 15;     
-        let maxSeconds = 7;  
-
-        if (selectedQualityWidth >= 450) { gifFps = 12; }
-        if (selectedQualityWidth >= 600) { gifFps = 8; maxSeconds = 6; }
-        if (selectedQualityWidth >= 800) { gifFps = 6; maxSeconds = 5; }
-        if (selectedQualityWidth >= 1000) { gifFps = 4; maxSeconds = 4; } 
+        // В gif.js меньшее quality = более точное кодирование.
+        const qualityProfiles = {
+            320:  { fps: 10, encoderQuality: 20 },
+            480:  { fps: 15, encoderQuality: 10 },
+            720:  { fps: 20, encoderQuality: 5 },
+            1080: { fps: 24, encoderQuality: 1 }
+        };
+        const profile = qualityProfiles[selectedQualityWidth] || qualityProfiles[480];
+        let gifQuality = profile.encoderQuality;
+        let gifFps = profile.fps;
 
         if (selectedCompressionTarget === 10) { 
             gifQuality = 25; 
@@ -380,10 +449,11 @@
 
         let width = hiddenVideo.videoWidth;
         let height = hiddenVideo.videoHeight;
-        
-        if (width > selectedQualityWidth) {
-            height = Math.floor(height * (selectedQualityWidth / width));
-            width = selectedQualityWidth;
+        const longestSide = Math.max(width, height);
+        if (longestSide > selectedQualityWidth) {
+            const scale = selectedQualityWidth / longestSide;
+            width = Math.max(1, Math.round(width * scale));
+            height = Math.max(1, Math.round(height * scale));
         }
 
         const processCanvas = document.getElementById('processCanvas');
@@ -391,9 +461,10 @@
         processCanvas.width = width;
         processCanvas.height = height;
 
-        const duration = hiddenVideo.duration;
-        const actualDuration = (duration > maxSeconds ? maxSeconds : duration);
-        const totalFrames = Math.floor(actualDuration / timeStep); 
+        const startTime = Number(trimStart.value);
+        const endTime = Number(trimEnd.value);
+        const actualDuration = Math.max(0, endTime - startTime);
+        const totalFrames = Math.max(1, Math.ceil(actualDuration / timeStep));
 
         const workerBlob = new Blob([`importScripts('https://cdnjs.cloudflare.com/ajax/libs/gif.js/0.2.0/gif.worker.js');`], { type: 'application/javascript' });
         const workerUrl = URL.createObjectURL(workerBlob);
@@ -410,7 +481,7 @@
         processStatus.innerText = `Анализ пространства (0 / ${totalFrames})...`;
 
         for (let i = 0; i < totalFrames; i++) { 
-            const time = i * timeStep; 
+            const time = Math.min(endTime, startTime + i * timeStep);
             await seekVideo(hiddenVideo, time);
             
             pCtx.drawImage(hiddenVideo, 0, 0, width, height);
@@ -440,6 +511,7 @@
         });
 
         gif.on('finished', function(blob) {
+            if (currentGifUrl) URL.revokeObjectURL(currentGifUrl);
             currentGifUrl = URL.createObjectURL(blob);
             
             emptyText.style.display = 'none';
