@@ -6,178 +6,98 @@
     <title>GIF Редактор</title>
 
     <style>
-        /* Основной мистический/космический стиль */
-        @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@600&family=Jost:wght@300;400;500&display=swap');
+:root { color-scheme: dark; --editor-scale: 1; --bg: #101216; --panel: #1b1e25; --line: #31353e; --muted: #9da5b5; --text: #f3f5fa; --mint: #b6f5d0; --violet: #b8a4ff; }
+* { box-sizing: border-box; }
+html, body { width: 100%; height: 100%; margin: 0; overflow: hidden; overscroll-behavior: none; }
+body { background: var(--bg); color: var(--text); font-family: Inter, 'Segoe UI', Arial, sans-serif; }
+button, input { font: inherit; }
+button { cursor: pointer; }
+button, label, input { -webkit-tap-highlight-color: transparent; }
+button { transition: background .16s, border-color .16s, color .16s; }
+button:disabled { cursor: default; opacity: .38; }
+button:focus-visible, input:focus-visible, [role="button"]:focus-visible { outline: 2px solid var(--mint); outline-offset: 3px; }
+[hidden] { display: none !important; }
+.app-container { position: absolute; left: 50%; top: 50%; width: 1440px; height: 810px; padding: 24px; display: grid; grid-template-columns: 360px minmax(0, 1fr); grid-template-rows: 64px minmax(0, 1fr) 24px; gap: 16px 24px; transform: translate(-50%, -50%) scale(var(--editor-scale)); transform-origin: center; background: radial-gradient(ellipse at 93% 0%, #25223666, transparent 44%), var(--bg); }
+.app-header { grid-column: 1 / -1; display: flex; align-items: center; justify-content: space-between; padding-bottom: 16px; border-bottom: 1px solid var(--line); }
+.brand { display: flex; align-items: center; gap: 12px; }
+.brand-mark { width: 44px; height: 44px; display: grid; place-items: center; border-radius: 14px; background: var(--mint); color: #173425; box-shadow: 0 6px 22px #b6f5d014; }
+.brand-mark svg { width: 26px; height: 26px; }
+h1 { font-size: 23px; line-height: 26px; letter-spacing: -.8px; margin: 0; font-weight: 700; }
+.brand-caption { color: var(--muted); font-size: 11px; margin-top: 3px; letter-spacing: 1.6px; text-transform: uppercase; }
+.action-toolbar { display: flex; align-items: center; gap: 8px; }
+.action-toolbar .btn-option { height: 36px; padding: 0 15px; font-size: 12px; }
+.action-toolbar button:last-child { margin-left: 12px; background: #242831; color: #e0e5ef; }
+.left-panel { display: grid; grid-template-rows: 210px 264px 140px; gap: 14px; min-height: 0; }
+.panel-box { background: linear-gradient(145deg, #20232b, #1a1d24); border: 1px solid var(--line); border-radius: 16px; padding: 14px; min-width: 0; }
+.panel-heading { display: flex; align-items: center; gap: 8px; margin: 0 0 10px; font-size: 13px; line-height: 18px; font-weight: 600; }
+.step-number { color: var(--violet); font-size: 10px; letter-spacing: .6px; font-weight: 500; }
+.source-tabs { display: flex; gap: 4px; padding: 4px; background: #11141a; border: 1px solid #2a2e38; border-radius: 10px; margin-bottom: 10px; }
+.source-tabs button { flex: 1; border: 0; background: transparent; border-radius: 7px; height: 28px; padding: 0 8px; font-size: 12px; color: var(--muted); }
+.source-tabs button.active { background: #34303f; color: #e0d6ff; box-shadow: 0 2px 6px #0003; }
+.upload-pane { position: relative; }
+.file-drop { display: flex; align-items: center; justify-content: center; gap: 10px; height: 48px; border: 1px dashed #5b626e; background: #25293277; border-radius: 10px; color: #e2e6f0; font-size: 12px; cursor: pointer; }
+.file-drop:hover { border-color: var(--mint); background: #b6f5d00a; }
+.file-drop svg { width: 20px; height: 20px; color: var(--mint); }
+input[type="file"] { position: absolute; width: 1px; height: 1px; opacity: 0; overflow: hidden; }
+.upload-pane:focus-within .file-drop { outline: 2px solid var(--mint); outline-offset: 2px; }
+.trim-hint { color: var(--muted); font-size: 11px; line-height: 15px; margin: 7px 0 0; }
+.source-info { margin: 0; color: var(--muted); font-size: 11px; line-height: 16px; min-width: 0; }
+#sourceInfo { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 7px; }
+.background-panel { display: flex; flex-direction: column; gap: 10px; }
+.background-panel .panel-heading { margin: 0; }
+.background-toggle { display: flex; align-items: center; gap: 8px; font-size: 12px; line-height: 20px; min-height: 20px; }
+input[type="checkbox"] { accent-color: var(--mint); width: 15px; height: 15px; margin: 0; flex: 0 0 auto; cursor: pointer; }
+.color-row { height: 34px; gap: 10px; }
+.color-row label { flex: 1; color: #c5cbd6; }
+input[type="color"] { appearance: none; width: 34px; height: 30px; background: #15181f; padding: 3px; border: 1px solid #474d59; border-radius: 8px; cursor: pointer; }
+input[type="color"]::-webkit-color-swatch-wrapper { padding: 0; }
+input[type="color"]::-webkit-color-swatch { border: 0; border-radius: 4px; }
+#autoKeyColor { height: 30px; padding: 0 13px; color: var(--mint); background: #b6f5d00c; border-color: #b6f5d040; }
+#keyColorHint { margin: 0; min-height: 30px; font-size: 10px; line-height: 15px; }
+.slider-container label { display: flex; align-items: center; justify-content: space-between; font-size: 12px; line-height: 18px; color: #d5dbe6; margin-bottom: 8px; }
+#tolValue { padding: 1px 7px; background: #b8a4ff18; color: #d0c1ff; border-radius: 5px; font-variant-numeric: tabular-nums; }
+input[type="range"] { appearance: none; display: block; width: 100%; height: 5px; border-radius: 8px; background: #454057; margin: 8px 0; cursor: pointer; accent-color: var(--violet); }
+input[type="range"]::-webkit-slider-thumb { appearance: none; width: 15px; height: 15px; border: 3px solid #ddd2ff; background: #8a70ce; border-radius: 50%; box-shadow: 0 1px 8px #0005; }
+input[type="range"]::-moz-range-thumb { width: 11px; height: 11px; border: 3px solid #ddd2ff; background: #8a70ce; border-radius: 50%; }
+#trimPanel .panel-heading { margin-bottom: 12px; }
+.trim-row { display: grid; grid-template-columns: 42px 1fr 55px; align-items: center; gap: 8px; height: 25px; }
+.trim-edge { color: var(--muted); font-size: 10px; }
+.trim-time { color: #e1d9f7; font-size: 11px; text-align: right; font-variant-numeric: tabular-nums; }
+#trimPanel .trim-hint { font-size: 10px; }
+.right-panel { min-height: 0; display: grid; grid-template-rows: 26px minmax(0, 1fr) 24px 44px 32px 48px; gap: 8px; }
+.preview-heading { display: flex; align-items: center; justify-content: space-between; font-size: 13px; font-weight: 500; }
+.live-indicator { font-size: 10px; font-weight: 400; color: var(--mint); display: flex; align-items: center; gap: 6px; }
+.live-indicator::before { content: ''; width: 5px; height: 5px; background: var(--mint); border-radius: 50%; box-shadow: 0 0 10px #b6f5d055; }
+.preview-box { position: relative; min-height: 0; border-radius: 18px; border: 1px solid #414451; display: flex; align-items: center; justify-content: center; overflow: hidden; background-color: #20242b; background-image: conic-gradient(#272b33 25%, transparent 0 50%, #272b33 0 75%, transparent 0); background-size: 24px 24px; box-shadow: inset 0 0 70px #0002; }
+.preview-box::before { content: ''; position: absolute; inset: 12px; border: 1px solid #ffffff09; border-radius: 10px; pointer-events: none; }
+#liveCanvas, #finalGif { max-width: calc(100% - 32px); max-height: calc(100% - 32px); object-fit: contain; z-index: 2; position: absolute; }
+#finalGif { display: none; z-index: 3; }
+.empty-text { display: flex; flex-direction: column; align-items: center; gap: 22px; color: #c7ccda; font-size: 16px; letter-spacing: -.2px; text-align: center; line-height: 24px; }
+.empty-text::before { content: '✦'; display: grid; place-items: center; width: 88px; height: 88px; background: linear-gradient(135deg, #3c354f, #222b2e); border: 1px solid #82709560; border-radius: 26px; color: var(--mint); font-size: 54px; line-height: 1; box-shadow: 14px -9px 0 -2px #272a34, 14px -9px 0 -1px #555264; transform: rotate(-8deg); }
+#previewInfo { align-self: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 10px; }
+.options-grid { display: grid; grid-template-columns: .8fr 1fr 1.15fr; gap: 10px; }
+.btn-option { border: 1px solid #3b414d; background: #20242d; color: #cdd4df; padding: 8px 12px; border-radius: 9px; font-size: 12px; text-align: center; }
+.btn-option:hover:enabled { border-color: #737c8b; background: #2b303b; }
+#optConvert { display: flex; align-items: center; justify-content: center; background: #b8a4ff0e; border-color: #b8a4ff25; color: #cec0fc; cursor: default; }
+.dropdown-wrapper { position: relative; }
+.dropdown-wrapper > button { height: 44px; }
+.dropdown-content { display: none; position: absolute; bottom: calc(100% + 8px); left: 0; width: 100%; padding: 5px; background: #242932; border: 1px solid #4b5260; border-radius: 11px; box-shadow: 0 12px 30px #0007; z-index: 10; }
+.dropdown-content.show { display: block; }
+.dropdown-content div { padding: 11px 8px; color: #dfe4ed; font-size: 11px; line-height: 16px; cursor: pointer; border-radius: 6px; }
+.dropdown-content div:hover { background: #b8a4ff22; }
+#processStatus { align-self: center; margin: 0; color: var(--mint); font-size: 11px; line-height: 16px; max-height: 32px; overflow: hidden; }
+.export-actions { display: flex; gap: 12px; }
+.btn-main { flex: 1; border: 1px solid #d4c8ff50; border-radius: 11px; background: #baabf4; color: #201a36; font-size: 13px; font-weight: 700; box-shadow: 0 4px 18px #9981e018; }
+.btn-main:hover:enabled { background: #cfbfff; }
+.btn-main:disabled { opacity: 1; background: #2b2d36; color: #777e8c; border-color: #3a3e49; box-shadow: none; }
+.btn-download { display: none; background: var(--mint); color: #133725; border-color: #b6f5d0; }
+.btn-download:hover:enabled { background: #d0ffe2; }
+.app-footer { grid-column: 1 / -1; display: flex; align-items: center; justify-content: space-between; border-top: 1px solid #30343e; padding-top: 8px; color: #8f98a8; font-size: 10px; line-height: 14px; }
+.footer-note { color: #707c8e; letter-spacing: 1.2px; font-size: 9px; }
+#hiddenVideo { display: none; }
+@media (prefers-reduced-motion: reduce) { button { transition: none; } }
 
-        body {
-            margin: 0;
-            padding: 15px;
-            box-sizing: border-box;
-            background: #0f0518;
-            background-image: radial-gradient(circle at 10% 20%, rgba(67, 24, 107, 0.4) 0%, transparent 40%),
-                              radial-gradient(circle at 90% 80%, rgba(93, 31, 148, 0.3) 0%, transparent 40%);
-            color: #e0d5ed;
-            font-family: 'Jost', sans-serif;
-            min-height: 100vh;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            overflow-y: auto;
-        }
-
-        .app-container {
-            width: 100%;
-            max-width: 1000px;
-            display: grid;
-            grid-template-columns: 1fr 1.5fr;
-            gap: 20px;
-            padding: 25px;
-            background: rgba(32, 14, 55, 0.5);
-            backdrop-filter: blur(10px);
-            border-radius: 20px;
-            border: 1px solid rgba(138, 75, 206, 0.3);
-            box-shadow: 0 0 40px rgba(67, 24, 107, 0.6);
-            margin: auto;
-        }
-
-        h1 {
-            grid-column: 1 / -1;
-            text-align: center;
-            font-family: 'Cinzel', serif;
-            font-size: 1.8rem;
-            margin-top: 0;
-            margin-bottom: 10px;
-            text-shadow: 0 0 15px rgba(183, 102, 255, 0.8);
-            letter-spacing: 2px;
-            text-transform: uppercase;
-        }
-
-        .left-panel { display: flex; flex-direction: column; gap: 15px; }
-        .panel-box { background: rgba(20, 8, 38, 0.7); padding: 15px; border-radius: 15px; border: 1px solid rgba(138, 75, 206, 0.2); }
-        .upload-wrapper { display: flex; align-items: center; gap: 15px; }
-
-        .btn-upload {
-            background: linear-gradient(135deg, #a64dff, #6b21a8);
-            color: #fff;
-            padding: 10px 20px;
-            border-radius: 30px;
-            cursor: pointer;
-            font-weight: 500;
-            text-transform: uppercase;
-            font-size: 13px;
-            letter-spacing: 1px;
-            box-shadow: 0 0 15px rgba(166, 77, 255, 0.4);
-            transition: 0.3s;
-            display: inline-block;
-        }
-        .btn-upload:hover { box-shadow: 0 0 25px rgba(166, 77, 255, 0.8); transform: scale(1.05); }
-        input[type="file"] { display: none; }
-        
-        #checkIcon { color: #4ade80; font-size: 20px; opacity: 0; transform: scale(0); transition: 0.3s; }
-        #checkIcon.visible { opacity: 1; transform: scale(1); }
-
-        .slider-container label { display: block; margin-bottom: 8px; font-size: 14px; color: #cba4f0; }
-        .trim-row { display: grid; grid-template-columns: 1fr auto; gap: 10px; align-items: center; margin-top: 12px; }
-        .trim-row:first-of-type { margin-top: 0; }
-        .trim-time { min-width: 58px; text-align: right; color: #fff; font-variant-numeric: tabular-nums; font-size: 13px; }
-        .trim-hint { margin: 10px 0 0; color: #9c80b6; font-size: 11px; }
-        input[type="range"] { -webkit-appearance: none; width: 100%; height: 6px; background: rgba(138, 75, 206, 0.3); border-radius: 5px; outline: none; }
-        input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; width: 18px; height: 18px; border-radius: 50%; background: #d8b4fe; box-shadow: 0 0 10px #d8b4fe; cursor: pointer; }
-
-        .right-panel { display: flex; flex-direction: column; gap: 15px; }
-
-        .preview-box {
-            position: relative;
-            background: #000;
-            border-radius: 15px;
-            border: 2px solid rgba(183, 102, 255, 0.5);
-            box-shadow: inset 0 0 30px rgba(183, 102, 255, 0.2), 0 0 20px rgba(183, 102, 255, 0.1);
-            height: 220px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            overflow: hidden;
-            background-image: linear-gradient(45deg, #1a0b2e 25%, transparent 25%), linear-gradient(-45deg, #1a0b2e 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #1a0b2e 75%), linear-gradient(-45deg, transparent 75%, #1a0b2e 75%);
-            background-size: 20px 20px;
-            background-position: 0 0, 0 10px, 10px -10px, -10px 0px;
-        }
-
-        #liveCanvas { max-width: 100%; max-height: 100%; z-index: 2; position: absolute; }
-        #finalGif { max-width: 100%; max-height: 100%; z-index: 3; position: absolute; display: none; transition: box-shadow 0.4s ease; border-radius: 8px; }
-        .empty-text { position: absolute; color: rgba(203, 164, 240, 0.5); z-index: 1; font-style: italic; font-size: 14px;}
-
-        .options-grid { 
-            display: grid; 
-            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-            gap: 10px; 
-        }
-        .btn-option { 
-            background: rgba(138, 75, 206, 0.1); 
-            border: 1px solid rgba(138, 75, 206, 0.4); 
-            color: #d8b4fe; 
-            padding: 8px; 
-            border-radius: 8px; 
-            cursor: pointer; 
-            font-family: inherit; 
-            font-size: 12px; 
-            transition: 0.3s; 
-            text-align: center; 
-        }
-        .btn-option:hover { background: rgba(138, 75, 206, 0.3); }
-        .btn-option.active { background: rgba(183, 102, 255, 0.5); border-color: #d8b4fe; box-shadow: 0 0 10px rgba(183, 102, 255, 0.5); color: #fff;}
-
-        .dropdown-wrapper { position: relative; }
-        .dropdown-content {
-            display: none; 
-            position: absolute; 
-            bottom: 100%; 
-            left: 0; 
-            width: 100%;
-            background: rgba(32, 14, 55, 0.95); 
-            border: 1px solid rgba(138, 75, 206, 0.5);
-            border-radius: 8px; 
-            z-index: 10; 
-            margin-bottom: 5px; 
-            box-shadow: 0 -5px 15px rgba(0,0,0,0.5); 
-            max-height: 120px; 
-            overflow-y: auto; 
-        }
-        
-        .dropdown-content::-webkit-scrollbar { width: 6px; }
-        .dropdown-content::-webkit-scrollbar-track { background: rgba(20, 8, 38, 0.7); border-radius: 8px; }
-        .dropdown-content::-webkit-scrollbar-thumb { background: #d8b4fe; border-radius: 8px; }
-        .dropdown-content::-webkit-scrollbar-thumb:hover { background: #a64dff; }
-
-        .dropdown-content.show { display: block; }
-        .dropdown-content div { padding: 8px; color: #d8b4fe; cursor: pointer; font-size: 12px; text-align: center; border-bottom: 1px solid rgba(138, 75, 206, 0.2); transition: 0.2s; }
-        .dropdown-content div:hover { background: rgba(183, 102, 255, 0.4); color: #fff; }
-        .dropdown-content div:last-child { border-bottom: none; }
-
-        .btn-main { background: linear-gradient(90deg, #d946ef, #8b5cf6); border: none; color: white; padding: 12px; font-size: 14px; border-radius: 10px; cursor: pointer; text-transform: uppercase; font-weight: bold; box-shadow: 0 0 20px rgba(217, 70, 239, 0.4); transition: 0.3s; margin-top: 5px; }
-        .btn-main:hover { filter: brightness(1.2); box-shadow: 0 0 30px rgba(217, 70, 239, 0.7); }
-        .btn-main:disabled { background: #4b365e; color: #888; cursor: not-allowed; box-shadow: none; }
-
-        .btn-download { background: #10b981; box-shadow: 0 0 20px rgba(16, 185, 129, 0.4); display: none; }
-        .btn-download:hover { background: #059669; box-shadow: 0 0 30px rgba(16, 185, 129, 0.7); }
-
-        #processStatus { text-align: center; color: #fbbf24; font-size: 13px; min-height: 15px; margin: 5px 0 0; }
-        #hiddenVideo { display: none; }
-
-        .source-tabs { display: flex; gap: 8px; margin-bottom: 15px; }
-        .source-tabs button { flex: 1; }
-        .action-toolbar { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 8px; }
-        .action-toolbar button:last-child { margin-left: auto; }
-        button:disabled { cursor: default; }
-        [hidden] { display: none !important; }
-        .source-info { font-size: 12px; color: #cba4f0; overflow-wrap: anywhere; }
-        .background-toggle { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
-        .app-footer { grid-column: 1 / -1; text-align: center; color: #bca2d3; font-size: 12px; padding-top: 15px; border-top: 1px solid rgba(138,75,206,.3); }
-        button:focus-visible, .btn-upload:focus-within, input:focus-visible { outline: 2px solid #d8b4fe; outline-offset: 4px; }
-        button:disabled { cursor: wait; opacity: .6; }
-        input[type="file"] { display: block; width: 100%; margin-top: 12px; font-family: inherit; color: #cba4f0; }
-        .app-container { box-sizing: border-box; }
-        @media(max-width: 768px) { .app-container { grid-template-columns: 1fr; } }
-    </style>
+</style>
 <!-- Third-party library licenses
 gif.js 0.2.0 — https://github.com/jnordberg/gif.js
 The MIT License (MIT)
@@ -257,74 +177,68 @@ SOFTWARE.
 <body>
 
 <div class="app-container">
-    <h1>GIF Редактор</h1>
-    <div class="action-toolbar" role="group" aria-label="История действий и новый файл">
-        <button type="button" class="btn-option" id="btnUndo" disabled title="Отменить действие (Ctrl/⌘ Z)">← Назад</button>
-        <button type="button" class="btn-option" id="btnRedo" disabled title="Повторить действие (Ctrl/⌘ Shift Z)">Вперёд →</button>
-        <button type="button" class="btn-option" id="btnReset" disabled>Сброс — новый файл</button>
-    </div>
-
+    <header class="app-header">
+        <div class="brand">
+            <div class="brand-mark" aria-hidden="true"><svg viewBox="0 0 28 28" fill="none"><rect x="3" y="5" width="22" height="18" rx="5" stroke="currentColor" stroke-width="1.8"/><path d="m12 10 6 4-6 4v-8Z" fill="currentColor"/><path d="M8 3v4M20 3v4M8 21v4M20 21v4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></div>
+            <div><h1>GIF Редактор</h1><div class="brand-caption">Маленькая студия больших идей</div></div>
+        </div>
+        <div class="action-toolbar" role="group" aria-label="История действий и новый файл">
+            <button type="button" class="btn-option" id="btnUndo" disabled title="Отменить действие (Ctrl/⌘ Z)">← Назад</button>
+            <button type="button" class="btn-option" id="btnRedo" disabled title="Повторить действие (Ctrl/⌘ Shift Z)">Вперёд →</button>
+            <button type="button" class="btn-option" id="btnReset" disabled>↻ Сброс — новый файл</button>
+        </div>
+    </header>
     <div class="left-panel">
-        <div class="panel-box">
+        <section class="panel-box">
+            <h2 class="panel-heading"><span class="step-number">01</span> Исходный файл</h2>
             <div class="source-tabs" role="tablist" aria-label="Источник анимации">
                 <button class="btn-option active" id="videoTab" role="tab" aria-selected="true" aria-controls="videoUpload" type="button">Загрузить видео</button>
                 <button class="btn-option" id="gifTab" role="tab" aria-selected="false" aria-controls="gifUpload" tabindex="-1" type="button">Загрузить GIF</button>
             </div>
-            <div id="videoUpload" role="tabpanel" aria-labelledby="videoTab">
-                <label for="videoInput">Выберите видео</label>
+            <div class="upload-pane" id="videoUpload" role="tabpanel" aria-labelledby="videoTab">
+                <label class="file-drop" for="videoInput"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 15V3m0 0L7 8m5-5 5 5M4 15v4a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>Выбрать видео с устройства</label>
                 <input type="file" id="videoInput" accept="video/mp4,video/webm,video/quicktime,.mov">
-                <p class="trim-hint">Рекомендуется фрагмент до 5–7 секунд на однородном фоне.</p>
+                <p class="trim-hint">MP4, WebM, MOV · Лучше фрагменты до 5–7 секунд.</p>
             </div>
-            <div id="gifUpload" role="tabpanel" aria-labelledby="gifTab" hidden>
-                <label for="gifInput">Выберите GIF для редактирования</label>
+            <div class="upload-pane" id="gifUpload" role="tabpanel" aria-labelledby="gifTab" hidden>
+                <label class="file-drop" for="gifInput"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 15V3m0 0L7 8m5-5 5 5M4 15v4a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>Выбрать GIF с устройства</label>
                 <input type="file" id="gifInput" accept="image/gif,.gif">
-                <p class="trim-hint">Загрузите готовую или ранее сохранённую GIF-анимацию. Можно обрезать её, изменить размер и удалить фон.</p>
+                <p class="trim-hint">Откройте готовую GIF для повторного редактирования.</p>
             </div>
             <p class="source-info" id="sourceInfo" aria-live="polite">Файл ещё не загружен.</p>
-        </div>
-
-        <div class="panel-box">
+        </section>
+        <section class="panel-box background-panel">
+            <h2 class="panel-heading"><span class="step-number">02</span> Фон и контуры</h2>
             <label class="background-toggle"><input type="checkbox" id="removeBackground" checked> Удалять фон</label>
-            <div class="background-toggle">
+            <div class="background-toggle color-row">
                 <label for="keyColor">Цвет для удаления</label>
                 <input type="color" id="keyColor" value="#00ff00" aria-label="Цвет для удаления">
-                <button type="button" class="btn-option" id="autoKeyColor">Авто</button>
+                <button type="button" class="btn-option" id="autoKeyColor">✦ Авто</button>
             </div>
-            <label class="background-toggle"><input type="checkbox" id="cleanGreenEdges" checked> Убирать зелёный ореол по краям</label>
-            <p class="trim-hint" id="keyColorHint">Нажмите «Авто» для подбора цвета и силы удаления или настройте силу ползунком.</p>
             <div class="slider-container">
-                <label for="tolerance">Сила удаления фона: <span id="tolValue">45</span></label>
+                <label for="tolerance">Сила удаления <span id="tolValue">45</span></label>
                 <input type="range" id="tolerance" min="10" max="150" value="45">
             </div>
-        </div>
-
-        <div class="panel-box" id="trimPanel" hidden>
-            <div class="slider-container">
-                <label>Обрезка анимации</label>
-                <div class="trim-row">
-                    <input type="range" id="trimStart" min="0" max="0" value="0" step="0.1" aria-label="Начало фрагмента">
-                    <span class="trim-time" id="trimStartValue">0:00.0</span>
-                </div>
-                <div class="trim-row">
-                    <input type="range" id="trimEnd" min="0" max="0" value="0" step="0.1" aria-label="Конец фрагмента">
-                    <span class="trim-time" id="trimEndValue">0:00.0</span>
-                </div>
-                <p class="trim-hint">В GIF попадёт только фрагмент между этими отметками.</p>
-            </div>
-        </div>
+            <label class="background-toggle"><input type="checkbox" id="cleanGreenEdges" checked> Убирать зелёный ореол по краям</label>
+            <p class="trim-hint" id="keyColorHint">Настройте силу ползунком или нажмите «Авто». Результат сразу появится справа.</p>
+        </section>
+        <section class="panel-box" id="trimPanel" hidden>
+            <h2 class="panel-heading"><span class="step-number">03</span> Обрезка анимации</h2>
+            <div class="trim-row"><span class="trim-edge">Начало</span><input type="range" id="trimStart" min="0" max="0" value="0" step="0.1" aria-label="Начало фрагмента"><span class="trim-time" id="trimStartValue">0:00.0</span></div>
+            <div class="trim-row"><span class="trim-edge">Конец</span><input type="range" id="trimEnd" min="0" max="0" value="0" step="0.1" aria-label="Конец фрагмента"><span class="trim-time" id="trimEndValue">0:00.0</span></div>
+            <p class="trim-hint">Сохранится фрагмент между двумя отметками.</p>
+        </section>
     </div>
-
     <div class="right-panel">
+        <div class="preview-heading"><span>Предпросмотр</span><span class="live-indicator">Изменения в реальном времени</span></div>
         <div class="preview-box">
-            <span class="empty-text" id="emptyText">Предпросмотр...</span>
+            <span class="empty-text" id="emptyText">Ваш GIF начинается здесь</span>
             <canvas id="liveCanvas"></canvas>
             <img id="finalGif" alt="Готовый GIF">
         </div>
-
-        <p class="source-info" id="previewInfo" role="status">Предпросмотр появится после загрузки файла.</p>
+        <p class="source-info" id="previewInfo" role="status">Загрузите видео или GIF — и начните создавать.</p>
         <div class="options-grid">
             <span class="btn-option active" id="optConvert">Видео → GIF</span>
-            
             <div class="dropdown-wrapper">
                 <button class="btn-option" id="resolutionBtn" style="width: 100%;">Качество: Среднее ▲</button>
                 <div class="dropdown-content" id="resolutionDropdown">
@@ -334,7 +248,6 @@ SOFTWARE.
                     <div data-val="1080" data-label="Максимальное">Максимальное (1080 px, 24 FPS)</div>
                 </div>
             </div>
-
             <div class="dropdown-wrapper">
                 <button class="btn-option" id="compressionBtn" style="width: 100%;">Сжатие: Без сжатия ▲</button>
                 <div class="dropdown-content" id="compressionDropdown">
@@ -344,13 +257,13 @@ SOFTWARE.
                 </div>
             </div>
         </div>
-
         <div id="processStatus" role="status" aria-live="polite"></div>
-
-        <button class="btn-main" id="btnProcess" disabled>Обработать и создать гиф</button>
-        <button class="btn-main btn-download" id="btnDownload">СКАЧАТЬ GIF</button>
+        <div class="export-actions">
+            <button class="btn-main" id="btnProcess" disabled>Обработать и создать GIF ↗</button>
+            <button class="btn-main btn-download" id="btnDownload">Скачать GIF ↓</button>
+        </div>
     </div>
-    <footer class="app-footer">Все права защищены и принадлежат Гальмиз Марии Александровне</footer>
+    <footer class="app-footer"><span>Все права защищены и принадлежат Гальмиз Марии Александровне</span><span class="footer-note">GIF STUDIO · СОЗДАВАЙТЕ С УДОВОЛЬСТВИЕМ</span></footer>
 </div>
 
 <video id="hiddenVideo" muted playsinline loop></video>
@@ -928,6 +841,16 @@ $('btnDownload').onclick = () => {
     status('Если скачивание заблокировано площадкой, нажмите на GIF правой кнопкой мыши и выберите «Сохранить картинку как…».');
 };
 syncActionButtons();
+
+// Keep the complete 16:9 workspace inside the Genially iframe, including its footer.
+function fitEditorToViewport() {
+    const root = document.documentElement;
+    if (!root) return;
+    const scale = Math.min(window.innerWidth / 1440, window.innerHeight / 810);
+    root.style.setProperty('--editor-scale', String(Math.max(0, scale)));
+}
+fitEditorToViewport();
+window.addEventListener('resize', fitEditorToViewport);
 
 </script>
 </body>
