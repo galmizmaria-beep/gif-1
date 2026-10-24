@@ -17,17 +17,17 @@ button { transition: background .16s, border-color .16s, color .16s; }
 button:disabled { cursor: default; opacity: .38; }
 button:focus-visible, input:focus-visible, [role="button"]:focus-visible { outline: 2px solid var(--mint); outline-offset: 3px; }
 [hidden] { display: none !important; }
-.app-container { position: absolute; left: 50%; top: 50%; width: 1440px; height: 810px; padding: 24px; display: grid; grid-template-columns: 360px minmax(0, 1fr); grid-template-rows: 64px minmax(0, 1fr) 24px; gap: 16px 24px; transform: translate(-50%, -50%) scale(var(--editor-scale)); transform-origin: center; background: radial-gradient(ellipse at 93% 0%, #25223666, transparent 44%), var(--bg); }
+.app-container { position: absolute; left: 50%; top: 50%; width: 1440px; height: 810px; padding: 24px; display: grid; grid-template-columns: 360px minmax(0, 1fr); grid-template-rows: 64px minmax(0, 1fr); gap: 16px 24px; transform: translate(-50%, -50%) scale(var(--editor-scale)); transform-origin: center; background: radial-gradient(ellipse at 93% 0%, #25223666, transparent 44%), var(--bg); }
 .app-header { grid-column: 1 / -1; display: flex; align-items: center; justify-content: space-between; padding-bottom: 16px; border-bottom: 1px solid var(--line); }
 .brand { display: flex; align-items: center; gap: 12px; }
 .brand-mark { width: 44px; height: 44px; display: grid; place-items: center; border-radius: 14px; background: var(--mint); color: #173425; box-shadow: 0 6px 22px #b6f5d014; }
 .brand-mark svg { width: 26px; height: 26px; }
 h1 { font-size: 23px; line-height: 26px; letter-spacing: -.8px; margin: 0; font-weight: 700; }
-.brand-caption { color: var(--muted); font-size: 11px; margin-top: 3px; letter-spacing: 1.6px; text-transform: uppercase; }
+.brand-caption { color: #bac2d0; font-size: 11px; line-height: 15px; margin: 3px 0 0; letter-spacing: .1px; }
 .action-toolbar { display: flex; align-items: center; gap: 8px; }
 .action-toolbar .btn-option { height: 36px; padding: 0 15px; font-size: 12px; }
 .action-toolbar button:last-child { margin-left: 12px; background: #242831; color: #e0e5ef; }
-.left-panel { display: grid; grid-template-rows: 210px 264px 140px; gap: 14px; min-height: 0; }
+.left-panel { display: grid; grid-template-rows: 210px 264px minmax(140px, 1fr); gap: 14px; min-height: 0; }
 .panel-box { background: linear-gradient(145deg, #20232b, #1a1d24); border: 1px solid var(--line); border-radius: 16px; padding: 14px; min-width: 0; }
 .panel-heading { display: flex; align-items: center; gap: 8px; margin: 0 0 10px; font-size: 13px; line-height: 18px; font-weight: 600; }
 .step-number { color: var(--violet); font-size: 10px; letter-spacing: .6px; font-weight: 500; }
@@ -92,8 +92,6 @@ input[type="range"]::-moz-range-thumb { width: 11px; height: 11px; border: 3px s
 .btn-main:disabled { opacity: 1; background: #2b2d36; color: #777e8c; border-color: #3a3e49; box-shadow: none; }
 .btn-download { display: none; background: var(--mint); color: #133725; border-color: #b6f5d0; }
 .btn-download:hover:enabled { background: #d0ffe2; }
-.app-footer { grid-column: 1 / -1; display: flex; align-items: center; justify-content: space-between; border-top: 1px solid #30343e; padding-top: 8px; color: #8f98a8; font-size: 10px; line-height: 14px; }
-.footer-note { color: #707c8e; letter-spacing: 1.2px; font-size: 9px; }
 #hiddenVideo { display: none; }
 @media (prefers-reduced-motion: reduce) { button { transition: none; } }
 
@@ -180,7 +178,7 @@ SOFTWARE.
     <header class="app-header">
         <div class="brand">
             <div class="brand-mark" aria-hidden="true"><svg viewBox="0 0 28 28" fill="none"><rect x="3" y="5" width="22" height="18" rx="5" stroke="currentColor" stroke-width="1.8"/><path d="m12 10 6 4-6 4v-8Z" fill="currentColor"/><path d="M8 3v4M20 3v4M8 21v4M20 21v4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></div>
-            <div><h1>GIF Редактор</h1><div class="brand-caption">Маленькая студия больших идей</div></div>
+            <div><h1>GIF Редактор</h1><p class="brand-caption">Все права защищены и принадлежат Гальмиз Марии Александровне</p></div>
         </div>
         <div class="action-toolbar" role="group" aria-label="История действий и новый файл">
             <button type="button" class="btn-option" id="btnUndo" disabled title="Отменить действие (Ctrl/⌘ Z)">← Назад</button>
@@ -263,7 +261,6 @@ SOFTWARE.
             <button class="btn-main btn-download" id="btnDownload">Скачать GIF ↓</button>
         </div>
     </div>
-    <footer class="app-footer"><span>Все права защищены и принадлежат Гальмиз Марии Александровне</span><span class="footer-note">GIF STUDIO · СОЗДАВАЙТЕ С УДОВОЛЬСТВИЕМ</span></footer>
 </div>
 
 <video id="hiddenVideo" muted playsinline loop></video>
