@@ -277,6 +277,13 @@ SOFTWARE.
 
         <div class="panel-box">
             <label class="background-toggle"><input type="checkbox" id="removeBackground" checked> Удалять фон</label>
+            <div class="background-toggle">
+                <label for="keyColor">Цвет для удаления</label>
+                <input type="color" id="keyColor" value="#00ff00" aria-label="Цвет для удаления">
+                <button type="button" class="btn-option" id="autoKeyColor">Авто</button>
+            </div>
+            <label class="background-toggle"><input type="checkbox" id="cleanGreenEdges" checked> Убирать зелёный ореол по краям</label>
+            <p class="trim-hint" id="keyColorHint">Цвет определяется автоматически. При необходимости выберите его вручную.</p>
             <div class="slider-container">
                 <label for="tolerance">Сила удаления фона: <span id="tolValue">45</span></label>
                 <input type="range" id="tolerance" min="10" max="150" value="45">
@@ -306,6 +313,7 @@ SOFTWARE.
             <img id="finalGif" alt="Готовый GIF">
         </div>
 
+        <p class="source-info" id="previewInfo" role="status">Предпросмотр появится после загрузки файла.</p>
         <div class="options-grid">
             <span class="btn-option active" id="optConvert">Видео → GIF</span>
             
@@ -360,6 +368,63 @@ const trimStart = $('trimStart'), trimEnd = $('trimEnd');
 let source = null, gifFrames = [], sourceUrl = '', resultUrl = '', sourceName = '';
 let busy = false, loadVersion = 0, activeTab = 'video', qualityWidth = 480, compression = 0;
 let previewOrigin = performance.now(), previewOffset = 0, lastPreviewFrame = -1;
+let backgroundColor = null, customBackground = false, qualityPreviewTimer = null, lastVideoPreview = -Infinity;
+const previewSource = document.createElement('canvas');
+const previewSourceCtx = previewSource.getContext('2d', {willReadFrequently: true});
+function outputSize() {
+    if (!source) return {width: 0, height: 0};
+    const scale = Math.min(1, qualityWidth / Math.max(source.width, source.height));
+    return {width: Math.max(1, Math.round(source.width * scale)), height: Math.max(1, Math.round(source.height * scale))};
+}
+function refreshPreviewSize() {
+    if (!source) return;
+    const {width, height} = outputSize();
+    canvas.width = width; canvas.height = height;
+    lastPreviewFrame = -1; lastVideoPreview = -Infinity;
+    $('previewInfo').textContent = `Предпросмотр: ${width} × ${height} пикселей. После выбора качества будет показан готовый GIF.`;
+}
+function scheduleQualityPreview() {
+    clearTimeout(qualityPreviewTimer);
+    if (!source || busy) return;
+    refreshPreviewSize();
+    status('Обновление предпросмотра выбранного качества…');
+    qualityPreviewTimer = setTimeout(() => { qualityPreviewTimer = null; if (source && !busy) $('btnProcess').onclick(); }, 400);
+}
+function inferBackground(image) {
+    const {data, width, height} = image;
+    const bins = new Map(); let transparent = false;
+    const add = i => {
+        if (data[i+3] < 128) { transparent = true; return; }
+        const key = `${data[i] >> 4},${data[i+1] >> 4},${data[i+2] >> 4}`;
+        const bin = bins.get(key) || {count: 0, r: 0, g: 0, b: 0};
+        bin.count++; bin.r += data[i]; bin.g += data[i+1]; bin.b += data[i+2]; bins.set(key, bin);
+    };
+    const step = Math.max(1, Math.floor(Math.max(width, height) / 256));
+    for (let x = 0; x < width; x += step) { add(x*4); add(((height-1)*width+x)*4); }
+    for (let y = 1; y < height-1; y += step) { add(y*width*4); add((y*width+width-1)*4); }
+    // У прозрачных GIF угол не содержит цвета фона: ищем остатки зелёного внутри кадра.
+    if (transparent) {
+        bins.clear();
+        const stride = Math.max(1, Math.floor(width*height/20000));
+        for (let pixel = 0; pixel < width*height; pixel += stride) {
+            const i = pixel*4, r = data[i], g = data[i+1], b = data[i+2];
+            if (data[i+3] >= 128 && g > Math.max(r,b)+15 && g > Math.max(r,b)*1.12) add(i);
+        }
+    }
+    const best = [...bins.values()].sort((a,b) => b.count-a.count)[0];
+    return best ? [best.r,best.g,best.b].map(n => Math.round(n/best.count)) : null;
+}
+function updateBackgroundColor() {
+    if (!source) return;
+    if (!customBackground) {
+        previewSource.width = source.width; previewSource.height = source.height;
+        if (source.type === 'gif') previewSourceCtx.putImageData(gifFrames[0].image,0,0);
+        else previewSourceCtx.drawImage(video,0,0);
+        backgroundColor = inferBackground(previewSourceCtx.getImageData(0,0,source.width,source.height));
+        if (backgroundColor) $('keyColor').value = '#' + backgroundColor.map(n=>n.toString(16).padStart(2,'0')).join('');
+    }
+    $('keyColorHint').textContent = customBackground ? 'Удаляется выбранный вами цвет.' : backgroundColor ? 'Цвет определён автоматически. Можно выбрать другой цвет вручную.' : 'Фон прозрачный. Выберите цвет контура вручную, если он остался.';
+}
 const status = (text, error = false) => {
     $('processStatus').textContent = text;
     $('processStatus').style.color = error ? '#fbbf24' : '#4ade80';
@@ -370,13 +435,15 @@ function lock(value) {
     $('btnProcess').disabled = value || !source;
 }
 function clearResult() {
+    clearTimeout(qualityPreviewTimer); qualityPreviewTimer = null;
     if (resultUrl) URL.revokeObjectURL(resultUrl);
     resultUrl = '';
     $('finalGif').removeAttribute('src');
     $('finalGif').style.display = 'none';
     $('btnDownload').style.display = 'none';
     canvas.style.display = 'block';
-    lastPreviewFrame = -1;
+    lastPreviewFrame = -1; lastVideoPreview = -Infinity;
+    if (source) refreshPreviewSize();
 }
 function formatTime(value) {
     const n = Math.max(0, Number(value) || 0);
@@ -419,6 +486,13 @@ for (const slider of [trimStart, trimEnd]) {
 }
 $('tolerance').oninput = () => { $('tolValue').textContent = $('tolerance').value; clearResult(); status(''); };
 $('removeBackground').onchange = () => { $('tolerance').disabled = !$('removeBackground').checked; clearResult(); status(''); };
+$('keyColor').oninput = () => {
+    customBackground = true; backgroundColor = $('keyColor').value.match(/[a-f\d]{2}/gi).map(n=>parseInt(n,16));
+    $('removeBackground').checked = true; $('tolerance').disabled = false;
+    updateBackgroundColor(); clearResult(); status('');
+};
+$('autoKeyColor').onclick = () => { customBackground = false; updateBackgroundColor(); clearResult(); status(''); };
+$('cleanGreenEdges').onchange = () => { clearResult(); status(''); };
 for (const name of ['resolution', 'compression']) {
     const button = $(name + 'Btn'), dropdown = $(name + 'Dropdown');
     button.onclick = event => {
@@ -434,7 +508,7 @@ for (const name of ['resolution', 'compression']) {
             if (name === 'resolution') qualityWidth = Number(option.dataset.val);
             else compression = Number(option.dataset.val);
             button.textContent = `${name === 'resolution' ? 'Качество' : 'Сжатие'}: ${option.dataset.label} ▲`;
-            dropdown.classList.remove('show'); clearResult(); status('');
+            dropdown.classList.remove('show'); clearResult(); scheduleQualityPreview();
         };
         option.onclick = choose;
         option.onkeydown = e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); choose(); } };
@@ -446,7 +520,8 @@ window.addEventListener('keydown', e => { if (e.key === 'Escape') document.query
 function resetSource() {
     video.pause(); video.removeAttribute('src'); video.load();
     if (sourceUrl) URL.revokeObjectURL(sourceUrl);
-    sourceUrl = ''; source = null; gifFrames = []; clearResult();
+    sourceUrl = ''; source = null; gifFrames = []; backgroundColor = null; customBackground = false; clearResult();
+    $('previewInfo').textContent = 'Предпросмотр появится после загрузки файла.';
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     $('trimPanel').hidden = true;
     $('emptyText').style.display = 'inline';
@@ -454,7 +529,8 @@ function resetSource() {
 }
 function acceptSource(info) {
     source = info;
-    canvas.width = info.width; canvas.height = info.height;
+    previewSource.width = info.width; previewSource.height = info.height;
+    refreshPreviewSize(); updateBackgroundColor();
     trimStart.max = trimEnd.max = String(info.duration);
     trimStart.value = 0; trimEnd.value = info.duration;
     $('trimPanel').hidden = false;
@@ -547,15 +623,34 @@ for (const type of ['video', 'gif']) $(type + 'Input').onchange = event => {
     const file = event.target.files[0]; event.target.value = ''; upload(file, type);
 };
 function removeBackground(image, exporting = false) {
-    const data = image.data, enabled = $('removeBackground').checked;
-    const toleranceSq = Number($('tolerance').value) ** 2;
-    const [r, g, b, alpha] = data;
+    const {data, width, height} = image, enabled = $('removeBackground').checked;
+    // В максимуме захватываем также тёмные и светлые оттенки выбранного цвета.
+    const strength = Number($('tolerance').value);
+    const threshold = strength <= 45 ? strength : 45 + (strength-45)*2.25;
+    const toleranceSq = threshold ** 2;
+    const key = backgroundColor;
+    const greenKey = key && key[1] > Math.max(key[0],key[2])+15;
     for (let i = 0; i < data.length; i += 4) {
-        const matches = enabled && alpha > 0 && (data[i] - r) ** 2 + (data[i+1] - g) ** 2 + (data[i+2] - b) ** 2 < toleranceSq;
-        if (data[i+3] < 128 || matches) {
-            if (exporting) { data[i] = 255; data[i+1] = 0; data[i+2] = 255; data[i+3] = 255; }
-            else data[i+3] = 0;
+        const matches = enabled && key && (!greenKey || data[i+1] > Math.max(data[i],data[i+2])+6) && (data[i]-key[0])**2 + (data[i+1]-key[1])**2 + (data[i+2]-key[2])**2 <= toleranceSq;
+        if (data[i+3] < 128 || matches) data[i+3] = 0;
+    }
+    // Подавляем зелёную примесь только рядом с прозрачностью, сохраняя внутренние цвета.
+    if (enabled && $('cleanGreenEdges').checked && key && key[1] > Math.max(key[0],key[2])+15) {
+        const alpha = new Uint8Array(width*height);
+        for (let p = 0; p < alpha.length; p++) alpha[p] = data[p*4+3];
+        for (let y = 0; y < height; y++) for (let x = 0; x < width; x++) {
+            const i = (y*width+x)*4;
+            if (!data[i+3] || data[i+1] <= Math.max(data[i],data[i+2])) continue;
+            let edge = false;
+            for (let dy = -2; dy <= 2 && !edge; dy++) for (let dx = -2; dx <= 2; dx++) {
+                const nx=x+dx, ny=y+dy;
+                if (nx>=0 && nx<width && ny>=0 && ny<height && !alpha[ny*width+nx]) { edge=true; break; }
+            }
+            if (edge) data[i+1] = Math.max(data[i],data[i+2]);
         }
+    }
+    if (exporting) for (let i = 0; i < data.length; i += 4) {
+        if (!data[i+3]) { data[i]=255; data[i+1]=0; data[i+2]=255; data[i+3]=255; }
     }
     return image;
 }
@@ -570,15 +665,21 @@ function renderPreview(now) {
             const time = start + ((now - previewOrigin) / 1000 + previewOffset - start) % Math.max(.01, end - start);
             const index = frameAt(time);
             if (index !== lastPreviewFrame) {
-                ctx.putImageData(gifFrames[index].image, 0, 0);
-                ctx.putImageData(removeBackground(ctx.getImageData(0, 0, canvas.width, canvas.height)), 0, 0);
+                previewSourceCtx.putImageData(gifFrames[index].image, 0, 0);
+                ctx.clearRect(0,0,canvas.width,canvas.height);
+                ctx.drawImage(previewSource,0,0,canvas.width,canvas.height);
+                ctx.putImageData(removeBackground(ctx.getImageData(0,0,canvas.width,canvas.height)),0,0);
                 lastPreviewFrame = index;
             }
         } else if (video.readyState >= 2) {
             if (video.currentTime >= end || video.currentTime < start) video.currentTime = start;
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            ctx.drawImage(video, 0, 0);
-            ctx.putImageData(removeBackground(ctx.getImageData(0, 0, canvas.width, canvas.height)), 0, 0);
+            const fps = {320:10,480:15,720:20,1080:24}[qualityWidth];
+            if (now-lastVideoPreview >= Math.round(100/fps)*10) {
+                ctx.clearRect(0,0,canvas.width,canvas.height);
+                ctx.drawImage(video,0,0,canvas.width,canvas.height);
+                ctx.putImageData(removeBackground(ctx.getImageData(0,0,canvas.width,canvas.height)),0,0);
+                lastVideoPreview = now;
+            }
         }
     }
     requestAnimationFrame(renderPreview);
@@ -614,8 +715,7 @@ $('btnProcess').onclick = async () => {
     let workerUrl = '', gif;
     try {
         const start = Number(trimStart.value), end = Number(trimEnd.value);
-        const scale = Math.min(1, qualityWidth / Math.max(source.width, source.height));
-        const width = Math.max(1, Math.round(source.width * scale)), height = Math.max(1, Math.round(source.height * scale));
+        const {width, height} = outputSize();
         const out = $('processCanvas'); out.width = width; out.height = height;
         const oc = out.getContext('2d', {willReadFrequently: true});
         const raw = document.createElement('canvas'); raw.width = source.width; raw.height = source.height;
@@ -644,6 +744,7 @@ $('btnProcess').onclick = async () => {
         resultUrl = URL.createObjectURL(blob);
         $('finalGif').src = resultUrl; $('finalGif').style.display = 'block';
         canvas.style.display = 'none'; $('btnDownload').style.display = 'block';
+        $('previewInfo').textContent = `Готовый GIF: ${width} × ${height} пикселей. В предпросмотре показан файл для скачивания.`;
         const size = blob.size / 1024 / 1024;
         status(`Готово! ${width} × ${height} · ${size.toFixed(2)} МБ.${compression && size > compression ? ` Размер больше ${compression} МБ. Уменьшите качество или длительность.` : ''}`, compression && size > compression);
     } catch (error) { status(error.message || 'Не удалось сохранить GIF.', true); }
