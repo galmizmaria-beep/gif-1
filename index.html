@@ -552,9 +552,48 @@ for (const slider of [trimStart, trimEnd]) {
     slider.oninput = () => { clearResult(); updateTrim(slider); status(''); };
     slider.onchange = recordAction;
 }
+function readCurrentSourceFrame() {
+    previewSource.width = source.width; previewSource.height = source.height;
+    if (source.type === 'gif') {
+        const index = lastPreviewFrame >= 0 ? lastPreviewFrame : frameAt(Number(trimStart.value));
+        previewSourceCtx.putImageData(gifFrames[index].image,0,0);
+    } else previewSourceCtx.drawImage(video,0,0);
+    return previewSourceCtx.getImageData(0,0,source.width,source.height);
+}
+function manualBackgroundColor(image) {
+    const detected = inferBackground(image);
+    if (detected) return detected;
+    // Даже если авто не нашло зелёный фон, ручная сила работает с цветом
+    // непрозрачной границы. Не используем RGB полностью прозрачного угла.
+    const {data,width,height} = image, bins = new Map();
+    const stride = Math.max(1,Math.floor(width*height/30000));
+    for (let pixel=0; pixel<width*height; pixel+=stride) {
+        const i=pixel*4;
+        if (data[i+3]<128) continue;
+        const x=pixel%width,y=Math.floor(pixel/width);
+        const edge = x===0 || y===0 || x===width-1 || y===height-1 ||
+            data[i-4+3]<128 || data[i+4+3]<128 ||
+            data[i-width*4+3]<128 || data[i+width*4+3]<128;
+        if (!edge) continue;
+        const id=`${data[i]>>4},${data[i+1]>>4},${data[i+2]>>4}`;
+        const bin=bins.get(id)||{n:0,r:0,g:0,b:0};
+        bin.n++;bin.r+=data[i];bin.g+=data[i+1];bin.b+=data[i+2];bins.set(id,bin);
+    }
+    const best=[...bins.values()].sort((a,b)=>b.n-a.n)[0];
+    return best ? [best.r,best.g,best.b].map(n=>Math.round(n/best.n)) : null;
+}
 $('tolerance').oninput = () => {
+    if (!source || busy) return;
+    if (!customBackground) {
+        backgroundColor = manualBackgroundColor(readCurrentSourceFrame());
+        if (backgroundColor) $('keyColor').value='#'+backgroundColor.map(n=>n.toString(16).padStart(2,'0')).join('');
+    }
     $('removeBackground').checked = true;
-    $('tolValue').textContent = $('tolerance').value; clearResult(); status('Сила удаления настроена вручную.');
+    $('tolValue').textContent = $('tolerance').value;
+    $('keyColorHint').textContent = 'Ручное удаление фона. Изменения сразу видны в предпросмотре; «Авто» нажимать не нужно.';
+    clearResult();
+    drawPreviewFrame(performance.now(),true);
+    status('Ручное удаление фона: предпросмотр обновлён.');
 };
 $('tolerance').onchange = recordAction;
 $('removeBackground').onchange = () => { clearResult(); status(''); recordAction(); };
@@ -779,13 +818,13 @@ function frameAt(time) {
     const index = gifFrames.findIndex(frame => time >= frame.start && time < frame.end);
     return index < 0 ? gifFrames.length - 1 : index;
 }
-function renderPreview(now) {
+function drawPreviewFrame(now, force = false) {
     if (source && !busy && !resultUrl) {
         const start = Number(trimStart.value), end = Number(trimEnd.value);
         if (source.type === 'gif') {
             const time = start + ((now - previewOrigin) / 1000 + previewOffset - start) % Math.max(.01, end - start);
             const index = frameAt(time);
-            if (index !== lastPreviewFrame) {
+            if (force || index !== lastPreviewFrame) {
                 previewSourceCtx.putImageData(gifFrames[index].image, 0, 0);
                 ctx.clearRect(0,0,canvas.width,canvas.height);
                 ctx.drawImage(previewSource,0,0,canvas.width,canvas.height);
@@ -795,7 +834,7 @@ function renderPreview(now) {
         } else if (video.readyState >= 2) {
             if (video.currentTime >= end || video.currentTime < start) video.currentTime = start;
             const fps = {320:10,480:15,720:20,1080:24}[qualityWidth];
-            if (now-lastVideoPreview >= Math.round(100/fps)*10) {
+            if (force || now-lastVideoPreview >= Math.round(100/fps)*10) {
                 ctx.clearRect(0,0,canvas.width,canvas.height);
                 ctx.drawImage(video,0,0,canvas.width,canvas.height);
                 ctx.putImageData(removeBackground(ctx.getImageData(0,0,canvas.width,canvas.height)),0,0);
@@ -803,6 +842,9 @@ function renderPreview(now) {
             }
         }
     }
+}
+function renderPreview(now) {
+    drawPreviewFrame(now);
     requestAnimationFrame(renderPreview);
 }
 requestAnimationFrame(renderPreview);
