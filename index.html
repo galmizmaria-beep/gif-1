@@ -165,6 +165,9 @@
 
         .source-tabs { display: flex; gap: 8px; margin-bottom: 15px; }
         .source-tabs button { flex: 1; }
+        .action-toolbar { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 8px; }
+        .action-toolbar button:last-child { margin-left: auto; }
+        button:disabled { cursor: default; }
         [hidden] { display: none !important; }
         .source-info { font-size: 12px; color: #cba4f0; overflow-wrap: anywhere; }
         .background-toggle { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
@@ -255,6 +258,11 @@ SOFTWARE.
 
 <div class="app-container">
     <h1>GIF Редактор</h1>
+    <div class="action-toolbar" role="group" aria-label="История действий и новый файл">
+        <button type="button" class="btn-option" id="btnUndo" disabled title="Отменить действие (Ctrl/⌘ Z)">← Назад</button>
+        <button type="button" class="btn-option" id="btnRedo" disabled title="Повторить действие (Ctrl/⌘ Shift Z)">Вперёд →</button>
+        <button type="button" class="btn-option" id="btnReset" disabled>Сброс — новый файл</button>
+    </div>
 
     <div class="left-panel">
         <div class="panel-box">
@@ -283,7 +291,7 @@ SOFTWARE.
                 <button type="button" class="btn-option" id="autoKeyColor">Авто</button>
             </div>
             <label class="background-toggle"><input type="checkbox" id="cleanGreenEdges" checked> Убирать зелёный ореол по краям</label>
-            <p class="trim-hint" id="keyColorHint">Цвет определяется автоматически. При необходимости выберите его вручную.</p>
+            <p class="trim-hint" id="keyColorHint">Нажмите «Авто» для подбора цвета и силы удаления или настройте силу ползунком.</p>
             <div class="slider-container">
                 <label for="tolerance">Сила удаления фона: <span id="tolValue">45</span></label>
                 <input type="range" id="tolerance" min="10" max="150" value="45">
@@ -369,6 +377,64 @@ let source = null, gifFrames = [], sourceUrl = '', resultUrl = '', sourceName = 
 let busy = false, loadVersion = 0, activeTab = 'video', qualityWidth = 480, compression = 0;
 let previewOrigin = performance.now(), previewOffset = 0, lastPreviewFrame = -1;
 let backgroundColor = null, customBackground = false, qualityPreviewTimer = null, lastVideoPreview = -Infinity;
+let actionHistory = [], historyIndex = -1;
+function snapshotSettings() {
+    return {
+        tolerance: Number($('tolerance').value), remove: $('removeBackground').checked,
+        cleanEdges: $('cleanGreenEdges').checked, key: backgroundColor ? [...backgroundColor] : null,
+        custom: customBackground, keyValue: $('keyColor').value, keyHint: $('keyColorHint').textContent,
+        start: Number(trimStart.value), end: Number(trimEnd.value), quality: qualityWidth, compression,
+        qualityLabel: $('resolutionBtn').textContent, compressionLabel: $('compressionBtn').textContent
+    };
+}
+function syncActionButtons() {
+    $('btnUndo').disabled = busy || historyIndex <= 0;
+    $('btnRedo').disabled = busy || historyIndex >= actionHistory.length-1;
+    $('btnReset').disabled = busy || !source;
+    $('autoKeyColor').disabled = busy || !source;
+    $('tolerance').disabled = busy || !source;
+}
+function recordAction() {
+    if (!source || busy) return;
+    const next = snapshotSettings();
+    if (JSON.stringify(next) === JSON.stringify(actionHistory[historyIndex])) return;
+    actionHistory = actionHistory.slice(0, historyIndex+1);
+    actionHistory.push(next);
+    if (actionHistory.length > 100) actionHistory.shift();
+    historyIndex = actionHistory.length-1; syncActionButtons();
+}
+function resetHistory() {
+    actionHistory = source ? [snapshotSettings()] : [];
+    historyIndex = actionHistory.length-1; syncActionButtons();
+}
+function restoreAction(direction) {
+    if (busy || !source) return;
+    const target = historyIndex + direction;
+    if (target < 0 || target >= actionHistory.length) return;
+    const previousQuality = qualityWidth, previousCompression = compression;
+    historyIndex = target;
+    const state = actionHistory[target];
+    $('tolerance').value = state.tolerance; $('tolValue').textContent = state.tolerance;
+    $('removeBackground').checked = state.remove; $('cleanGreenEdges').checked = state.cleanEdges;
+    backgroundColor = state.key ? [...state.key] : null; customBackground = state.custom;
+    $('keyColor').value = state.keyValue; $('keyColorHint').textContent = state.keyHint;
+    trimStart.value = state.start; trimEnd.value = state.end;
+    qualityWidth = state.quality; compression = state.compression;
+    $('resolutionBtn').textContent = state.qualityLabel; $('compressionBtn').textContent = state.compressionLabel;
+    clearResult(); updateTrim(); syncActionButtons();
+    if (previousQuality !== qualityWidth || previousCompression !== compression) scheduleQualityPreview();
+    else status(direction < 0 ? 'Действие отменено.' : 'Действие возвращено.');
+}
+$('btnUndo').onclick = () => restoreAction(-1);
+$('btnRedo').onclick = () => restoreAction(1);
+window.addEventListener('keydown', event => {
+    if (!(event.ctrlKey || event.metaKey) || event.altKey || busy || !source) return;
+    if (event.target?.isContentEditable || ['text','search','email','url','number'].includes(event.target?.type)) return;
+    const key = event.key.toLowerCase();
+    if (key === 'z' || key === 'y') {
+        event.preventDefault(); restoreAction(key === 'y' || event.shiftKey ? 1 : -1);
+    }
+});
 const previewSource = document.createElement('canvas');
 const previewSourceCtx = previewSource.getContext('2d', {willReadFrequently: true});
 function outputSize() {
@@ -433,6 +499,7 @@ function lock(value) {
     busy = value;
     document.querySelectorAll('button, input').forEach(el => el.disabled = value);
     $('btnProcess').disabled = value || !source;
+    syncActionButtons();
 }
 function clearResult() {
     clearTimeout(qualityPreviewTimer); qualityPreviewTimer = null;
@@ -483,16 +550,46 @@ for (const type of ['video', 'gif']) {
 for (const slider of [trimStart, trimEnd]) {
     slider.step = '.01';
     slider.oninput = () => { clearResult(); updateTrim(slider); status(''); };
+    slider.onchange = recordAction;
 }
-$('tolerance').oninput = () => { $('tolValue').textContent = $('tolerance').value; clearResult(); status(''); };
-$('removeBackground').onchange = () => { $('tolerance').disabled = !$('removeBackground').checked; clearResult(); status(''); };
+$('tolerance').oninput = () => {
+    $('removeBackground').checked = true;
+    $('tolValue').textContent = $('tolerance').value; clearResult(); status('Сила удаления настроена вручную.');
+};
+$('tolerance').onchange = recordAction;
+$('removeBackground').onchange = () => { clearResult(); status(''); recordAction(); };
 $('keyColor').oninput = () => {
     customBackground = true; backgroundColor = $('keyColor').value.match(/[a-f\d]{2}/gi).map(n=>parseInt(n,16));
     $('removeBackground').checked = true; $('tolerance').disabled = false;
     updateBackgroundColor(); clearResult(); status('');
 };
-$('autoKeyColor').onclick = () => { customBackground = false; updateBackgroundColor(); clearResult(); status(''); };
-$('cleanGreenEdges').onchange = () => { clearResult(); status(''); };
+$('keyColor').onchange = recordAction;
+function autoRemoveBackground() {
+    if (!source || busy) return;
+    customBackground = false; updateBackgroundColor();
+    if (!backgroundColor) { clearResult(); recordAction(); status('Фон прозрачный. Если остался цветной контур, выберите его цвет вручную.'); return; }
+    const image = previewSourceCtx.getImageData(0,0,source.width,source.height);
+    const {data,width,height} = image, key = backgroundColor;
+    const green = key[1] > Math.max(key[0],key[2])+15;
+    const distances = [];
+    const stride = Math.max(1,Math.floor(width*height/20000));
+    for (let pixel=0; pixel<width*height; pixel+=stride) {
+        const i=pixel*4, x=pixel%width, y=Math.floor(pixel/width);
+        if (data[i+3]<128) continue;
+        const distance = Math.hypot(data[i]-key[0],data[i+1]-key[1],data[i+2]-key[2]);
+        const sample = green ? data[i+1]>Math.max(data[i],data[i+2])+15 : x<2 || y<2 || x>=width-2 || y>=height-2;
+        if (sample && distance<=280) distances.push(distance);
+    }
+    distances.sort((a,b)=>a-b);
+    const threshold = distances.length ? distances[Math.floor((distances.length-1)*.95)]+12 : 45;
+    const strength = Math.max(10,Math.min(150,Math.round(threshold<=45 ? threshold : 45+(threshold-45)/2.25)));
+    $('tolerance').value = strength; $('tolValue').textContent = strength;
+    $('removeBackground').checked = true; $('cleanGreenEdges').checked = true;
+    clearResult(); recordAction();
+    status(`Авто: цвет и сила удаления подобраны (${strength}). Можно уточнить результат ползунком.`);
+}
+$('autoKeyColor').onclick = autoRemoveBackground;
+$('cleanGreenEdges').onchange = () => { clearResult(); status(''); recordAction(); };
 for (const name of ['resolution', 'compression']) {
     const button = $(name + 'Btn'), dropdown = $(name + 'Dropdown');
     button.onclick = event => {
@@ -508,7 +605,7 @@ for (const name of ['resolution', 'compression']) {
             if (name === 'resolution') qualityWidth = Number(option.dataset.val);
             else compression = Number(option.dataset.val);
             button.textContent = `${name === 'resolution' ? 'Качество' : 'Сжатие'}: ${option.dataset.label} ▲`;
-            dropdown.classList.remove('show'); clearResult(); scheduleQualityPreview();
+            dropdown.classList.remove('show'); clearResult(); recordAction(); scheduleQualityPreview();
         };
         option.onclick = choose;
         option.onkeydown = e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); choose(); } };
@@ -526,7 +623,31 @@ function resetSource() {
     $('trimPanel').hidden = true;
     $('emptyText').style.display = 'inline';
     $('emptyText').textContent = 'Загрузка…';
+    previewSource.width = previewSource.height = 1;
+    resetHistory();
 }
+function resetEditor() {
+    if (busy) return;
+    ++loadVersion; resetSource(); sourceName = '';
+    qualityWidth = 480; compression = 0;
+    $('resolutionBtn').textContent = 'Качество: Среднее ▲';
+    $('compressionBtn').textContent = 'Сжатие: Без сжатия ▲';
+    $('removeBackground').checked = true; $('cleanGreenEdges').checked = true;
+    $('tolerance').value = 45; $('tolValue').textContent = '45';
+    $('keyColor').value = '#00ff00';
+    $('keyColorHint').textContent = 'Нажмите «Авто» для подбора цвета и силы удаления или настройте силу ползунком.';
+    for (const type of ['video','gif']) $(type+'Input').value = '';
+    trimStart.max = trimEnd.max = '0'; trimStart.value = trimEnd.value = '0'; updateTrim();
+    $('sourceInfo').textContent = 'Файл ещё не загружен.';
+    $('emptyText').textContent = 'Загрузите видео или GIF';
+    $('optConvert').textContent = 'Видео или GIF → GIF';
+    document.querySelectorAll('.dropdown-content').forEach(el=>el.classList.remove('show'));
+    canvas.width = 300; canvas.height = 150;
+    lock(false); status('Редактор сброшен. Выберите новое видео или GIF.');
+    $(activeTab+'Input').focus();
+}
+$('btnReset').onclick = resetEditor;
+
 function acceptSource(info) {
     source = info;
     previewSource.width = info.width; previewSource.height = info.height;
@@ -536,14 +657,14 @@ function acceptSource(info) {
     $('trimPanel').hidden = false;
     $('emptyText').style.display = 'none';
     $('removeBackground').checked = info.type === 'video';
-    $('tolerance').disabled = !$('removeBackground').checked;
+    $('tolerance').disabled = busy || !source;
     $('optConvert').textContent = info.type === 'gif' ? 'Редактирование GIF' : 'Видео → GIF';
     $('resolutionDropdown').querySelectorAll('div').forEach(option => {
         option.dataset.videoText ||= option.textContent;
         option.textContent = info.type === 'gif' ? option.dataset.videoText.replace(/, \d+ FPS/, '') : option.dataset.videoText;
     });
     $('sourceInfo').textContent = `${sourceName} · ${info.width} × ${info.height} · ${formatTime(info.duration)}${info.type === 'gif' ? ` · ${gifFrames.length} кадров` : ''}`;
-    updateTrim();
+    updateTrim(); resetHistory();
 }
 const yieldUI = () => new Promise(resolve => setTimeout(resolve, 0));
 async function decodeGif(buffer) {
@@ -616,7 +737,7 @@ async function upload(file, type) {
         $('sourceInfo').textContent = 'Файл не загружен.';
         status(error.message || 'Не удалось открыть файл.', true);
     } finally {
-        lock(false); $('tolerance').disabled = !$('removeBackground').checked;
+        lock(false);
     }
 }
 for (const type of ['video', 'gif']) $(type + 'Input').onchange = event => {
@@ -752,7 +873,7 @@ $('btnProcess').onclick = async () => {
         gif?.freeWorkers?.forEach(worker => worker.terminate());
         gif?.activeWorkers?.forEach(worker => worker.terminate());
         if (workerUrl) URL.revokeObjectURL(workerUrl);
-        lock(false); $('tolerance').disabled = !$('removeBackground').checked;
+        lock(false);
         if (source?.type === 'video') video.play().catch(() => {});
         previewOrigin = performance.now(); lastPreviewFrame = -1;
     }
@@ -764,6 +885,7 @@ $('btnDownload').onclick = () => {
     document.body.appendChild(link); link.click(); link.remove();
     status('Если скачивание заблокировано площадкой, нажмите на GIF правой кнопкой мыши и выберите «Сохранить картинку как…».');
 };
+syncActionButtons();
 
 </script>
 </body>
