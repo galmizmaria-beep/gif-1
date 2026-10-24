@@ -77,7 +77,10 @@
         #checkIcon.visible { opacity: 1; transform: scale(1); }
 
         .slider-container label { display: block; margin-bottom: 8px; font-size: 14px; color: #cba4f0; }
-        .helper-text { margin: 10px 0 0; color: #9c80b6; font-size: 11px; }
+        .trim-row { display: grid; grid-template-columns: 1fr auto; gap: 10px; align-items: center; margin-top: 12px; }
+        .trim-row:first-of-type { margin-top: 0; }
+        .trim-time { min-width: 58px; text-align: right; color: #fff; font-variant-numeric: tabular-nums; font-size: 13px; }
+        .trim-hint { margin: 10px 0 0; color: #9c80b6; font-size: 11px; }
         input[type="range"] { -webkit-appearance: none; width: 100%; height: 6px; background: rgba(138, 75, 206, 0.3); border-radius: 5px; outline: none; }
         input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; width: 18px; height: 18px; border-radius: 50%; background: #d8b4fe; box-shadow: 0 0 10px #d8b4fe; cursor: pointer; }
 
@@ -270,12 +273,12 @@ SOFTWARE.
             <div id="videoUpload" role="tabpanel" aria-labelledby="videoTab">
                 <label for="videoInput">Выберите видео</label>
                 <input type="file" id="videoInput" accept="video/mp4,video/webm,video/quicktime,.mov">
-                <p class="helper-text">Рекомендуется видео до 5–7 секунд на однородном фоне.</p>
+                <p class="trim-hint">Рекомендуется фрагмент до 5–7 секунд на однородном фоне.</p>
             </div>
             <div id="gifUpload" role="tabpanel" aria-labelledby="gifTab" hidden>
                 <label for="gifInput">Выберите GIF для редактирования</label>
                 <input type="file" id="gifInput" accept="image/gif,.gif">
-                <p class="helper-text">Загрузите готовую или ранее сохранённую GIF-анимацию. Можно изменить размер и удалить фон.</p>
+                <p class="trim-hint">Загрузите готовую или ранее сохранённую GIF-анимацию. Можно обрезать её, изменить размер и удалить фон.</p>
             </div>
             <p class="source-info" id="sourceInfo" aria-live="polite">Файл ещё не загружен.</p>
         </div>
@@ -288,14 +291,27 @@ SOFTWARE.
                 <button type="button" class="btn-option" id="autoKeyColor">Авто</button>
             </div>
             <label class="background-toggle"><input type="checkbox" id="cleanGreenEdges" checked> Убирать зелёный ореол по краям</label>
-            <p class="helper-text" id="keyColorHint">Нажмите «Авто» для подбора цвета и силы удаления или настройте силу ползунком.</p>
+            <p class="trim-hint" id="keyColorHint">Нажмите «Авто» для подбора цвета и силы удаления или настройте силу ползунком.</p>
             <div class="slider-container">
                 <label for="tolerance">Сила удаления фона: <span id="tolValue">45</span></label>
                 <input type="range" id="tolerance" min="10" max="150" value="45">
             </div>
         </div>
 
-
+        <div class="panel-box" id="trimPanel" hidden>
+            <div class="slider-container">
+                <label>Обрезка анимации</label>
+                <div class="trim-row">
+                    <input type="range" id="trimStart" min="0" max="0" value="0" step="0.1" aria-label="Начало фрагмента">
+                    <span class="trim-time" id="trimStartValue">0:00.0</span>
+                </div>
+                <div class="trim-row">
+                    <input type="range" id="trimEnd" min="0" max="0" value="0" step="0.1" aria-label="Конец фрагмента">
+                    <span class="trim-time" id="trimEndValue">0:00.0</span>
+                </div>
+                <p class="trim-hint">В GIF попадёт только фрагмент между этими отметками.</p>
+            </div>
+        </div>
     </div>
 
     <div class="right-panel">
@@ -356,9 +372,10 @@ const GIF_WORKER_SOURCE = "// gif.worker.js 0.2.0 - https://github.com/jnordberg
 const $ = id => document.getElementById(id);
 const video = $('hiddenVideo'), canvas = $('liveCanvas');
 const ctx = canvas.getContext('2d', {willReadFrequently: true});
+const trimStart = $('trimStart'), trimEnd = $('trimEnd');
 let source = null, gifFrames = [], sourceUrl = '', resultUrl = '', sourceName = '';
 let busy = false, loadVersion = 0, activeTab = 'video', qualityWidth = 480, compression = 0;
-let previewOrigin = performance.now(), lastPreviewFrame = -1;
+let previewOrigin = performance.now(), previewOffset = 0, lastPreviewFrame = -1;
 let backgroundColor = null, customBackground = false, qualityPreviewTimer = null, lastVideoPreview = -Infinity;
 let actionHistory = [], historyIndex = -1;
 function snapshotSettings() {
@@ -366,7 +383,7 @@ function snapshotSettings() {
         tolerance: Number($('tolerance').value), remove: $('removeBackground').checked,
         cleanEdges: $('cleanGreenEdges').checked, key: backgroundColor ? [...backgroundColor] : null,
         custom: customBackground, keyValue: $('keyColor').value, keyHint: $('keyColorHint').textContent,
-        quality: qualityWidth, compression,
+        start: Number(trimStart.value), end: Number(trimEnd.value), quality: qualityWidth, compression,
         qualityLabel: $('resolutionBtn').textContent, compressionLabel: $('compressionBtn').textContent
     };
 }
@@ -401,9 +418,10 @@ function restoreAction(direction) {
     $('removeBackground').checked = state.remove; $('cleanGreenEdges').checked = state.cleanEdges;
     backgroundColor = state.key ? [...state.key] : null; customBackground = state.custom;
     $('keyColor').value = state.keyValue; $('keyColorHint').textContent = state.keyHint;
+    trimStart.value = state.start; trimEnd.value = state.end;
     qualityWidth = state.quality; compression = state.compression;
     $('resolutionBtn').textContent = state.qualityLabel; $('compressionBtn').textContent = state.compressionLabel;
-    clearResult(); restartPreview(); syncActionButtons();
+    clearResult(); updateTrim(); syncActionButtons();
     if (previousQuality !== qualityWidth || previousCompression !== compression) scheduleQualityPreview();
     else status(direction < 0 ? 'Действие отменено.' : 'Действие возвращено.');
 }
@@ -498,12 +516,17 @@ function formatTime(value) {
     const n = Math.max(0, Number(value) || 0);
     return `${Math.floor(n / 60)}:${(n % 60).toFixed(2).padStart(5, '0')}`;
 }
-function restartPreview() {
+function updateTrim(control) {
+    const gap = Math.min(.01, Number(trimEnd.max));
+    if (control === trimStart) trimStart.value = Math.min(Number(trimStart.value), Number(trimEnd.value) - gap);
+    if (control === trimEnd) trimEnd.value = Math.max(Number(trimEnd.value), Number(trimStart.value) + gap);
+    $('trimStartValue').textContent = formatTime(trimStart.value);
+    $('trimEndValue').textContent = formatTime(trimEnd.value);
     previewOrigin = performance.now();
+    previewOffset = Number(trimStart.value);
     lastPreviewFrame = -1;
-    if (source?.type === 'video') video.currentTime = 0;
+    if (source?.type === 'video') video.currentTime = previewOffset;
 }
-
 function selectTab(type) {
     if (busy) return;
     activeTab = type;
@@ -524,11 +547,15 @@ for (const type of ['video', 'gif']) {
         selectTab(next); $(next + 'Tab').focus();
     };
 }
-
+for (const slider of [trimStart, trimEnd]) {
+    slider.step = '.01';
+    slider.oninput = () => { clearResult(); updateTrim(slider); status(''); };
+    slider.onchange = recordAction;
+}
 function readCurrentSourceFrame() {
     previewSource.width = source.width; previewSource.height = source.height;
     if (source.type === 'gif') {
-        const index = lastPreviewFrame >= 0 ? lastPreviewFrame : frameAt(0);
+        const index = lastPreviewFrame >= 0 ? lastPreviewFrame : frameAt(Number(trimStart.value));
         previewSourceCtx.putImageData(gifFrames[index].image,0,0);
     } else previewSourceCtx.drawImage(video,0,0);
     return previewSourceCtx.getImageData(0,0,source.width,source.height);
@@ -632,6 +659,7 @@ function resetSource() {
     sourceUrl = ''; source = null; gifFrames = []; backgroundColor = null; customBackground = false; clearResult();
     $('previewInfo').textContent = 'Предпросмотр появится после загрузки файла.';
     ctx.clearRect(0, 0, canvas.width, canvas.height);
+    $('trimPanel').hidden = true;
     $('emptyText').style.display = 'inline';
     $('emptyText').textContent = 'Загрузка…';
     previewSource.width = previewSource.height = 1;
@@ -648,7 +676,7 @@ function resetEditor() {
     $('keyColor').value = '#00ff00';
     $('keyColorHint').textContent = 'Нажмите «Авто» для подбора цвета и силы удаления или настройте силу ползунком.';
     for (const type of ['video','gif']) $(type+'Input').value = '';
-    restartPreview();
+    trimStart.max = trimEnd.max = '0'; trimStart.value = trimEnd.value = '0'; updateTrim();
     $('sourceInfo').textContent = 'Файл ещё не загружен.';
     $('emptyText').textContent = 'Загрузите видео или GIF';
     $('optConvert').textContent = 'Видео или GIF → GIF';
@@ -663,6 +691,9 @@ function acceptSource(info) {
     source = info;
     previewSource.width = info.width; previewSource.height = info.height;
     refreshPreviewSize(); updateBackgroundColor();
+    trimStart.max = trimEnd.max = String(info.duration);
+    trimStart.value = 0; trimEnd.value = info.duration;
+    $('trimPanel').hidden = false;
     $('emptyText').style.display = 'none';
     $('removeBackground').checked = info.type === 'video';
     $('tolerance').disabled = busy || !source;
@@ -672,7 +703,7 @@ function acceptSource(info) {
         option.textContent = info.type === 'gif' ? option.dataset.videoText.replace(/, \d+ FPS/, '') : option.dataset.videoText;
     });
     $('sourceInfo').textContent = `${sourceName} · ${info.width} × ${info.height} · ${formatTime(info.duration)}${info.type === 'gif' ? ` · ${gifFrames.length} кадров` : ''}`;
-    restartPreview(); resetHistory();
+    updateTrim(); resetHistory();
 }
 const yieldUI = () => new Promise(resolve => setTimeout(resolve, 0));
 async function decodeGif(buffer) {
@@ -789,9 +820,9 @@ function frameAt(time) {
 }
 function drawPreviewFrame(now, force = false) {
     if (source && !busy && !resultUrl) {
-        const start = 0, end = source.duration;
+        const start = Number(trimStart.value), end = Number(trimEnd.value);
         if (source.type === 'gif') {
-            const time = start + ((now - previewOrigin) / 1000) % Math.max(.01, end - start);
+            const time = start + ((now - previewOrigin) / 1000 + previewOffset - start) % Math.max(.01, end - start);
             const index = frameAt(time);
             if (force || index !== lastPreviewFrame) {
                 previewSourceCtx.putImageData(gifFrames[index].image, 0, 0);
@@ -846,20 +877,20 @@ $('btnProcess').onclick = async () => {
     clearResult(); lock(true); video.pause();
     let workerUrl = '', gif;
     try {
-        const start = 0, end = source.duration;
+        const start = Number(trimStart.value), end = Number(trimEnd.value);
         const {width, height} = outputSize();
         const out = $('processCanvas'); out.width = width; out.height = height;
         const oc = out.getContext('2d', {willReadFrequently: true});
         const raw = document.createElement('canvas'); raw.width = source.width; raw.height = source.height;
         const rc = raw.getContext('2d');
         let frames;
-        if (source.type === 'gif') frames = gifFrames.map(f => ({frame: f, delay: (f.end-f.start)*1000}));
+        if (source.type === 'gif') frames = gifFrames.filter(f => f.end > start && f.start < end).map(f => ({frame: f, delay: (Math.min(f.end, end) - Math.max(f.start, start)) * 1000}));
         else {
             const fps = {320: 10, 480: 15, 720: 20, 1080: 24}[qualityWidth];
             const step = Math.round(100 / fps) / 100;
             frames = Array.from({length: Math.max(1, Math.ceil((end - start) / step))}, (_, i) => ({time: start + i * step, delay: Math.min(step, end - start - i * step) * 1000}));
         }
-        if (width * height * frames.length * 4 > 256 * 1024 * 1024) throw new Error('Для этого файла нужно слишком много памяти. Уменьшите качество или загрузите файл меньшего размера.');
+        if (width * height * frames.length * 4 > 256 * 1024 * 1024) throw new Error('Для этого фрагмента нужно слишком много памяти. Уменьшите качество или сократите фрагмент.');
         workerUrl = URL.createObjectURL(new Blob([GIF_WORKER_SOURCE], {type: 'application/javascript'}));
         gif = new GIF({workers: 2, quality: compression ? (compression === 5 ? 40 : 25) : ({320:20,480:10,720:5,1080:1}[qualityWidth]), width, height, repeat: 0, workerScript: workerUrl, transparent: 0xff00ff});
         for (let i = 0; i < frames.length; i++) {
@@ -878,7 +909,7 @@ $('btnProcess').onclick = async () => {
         canvas.style.display = 'none'; $('btnDownload').style.display = 'block';
         $('previewInfo').textContent = `Готовый GIF: ${width} × ${height} пикселей. В предпросмотре показан файл для скачивания.`;
         const size = blob.size / 1024 / 1024;
-        status(`Готово! ${width} × ${height} · ${size.toFixed(2)} МБ.${compression && size > compression ? ` Размер больше ${compression} МБ. Уменьшите качество или загрузите файл меньшего размера.` : ''}`, compression && size > compression);
+        status(`Готово! ${width} × ${height} · ${size.toFixed(2)} МБ.${compression && size > compression ? ` Размер больше ${compression} МБ. Уменьшите качество или длительность.` : ''}`, compression && size > compression);
     } catch (error) { status(error.message || 'Не удалось сохранить GIF.', true); }
     finally {
         gif?.freeWorkers?.forEach(worker => worker.terminate());
