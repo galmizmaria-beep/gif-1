@@ -68,7 +68,7 @@ input[type="range"]::-moz-range-thumb { width: 11px; height: 11px; border: 3px s
 .preview-heading { display: flex; align-items: center; justify-content: space-between; font-size: 13px; font-weight: 500; }
 .preview-tools { display: flex; align-items: center; gap: 8px; }
 .preview-tools button { padding: 3px 10px; height: 26px; font-size: 11px; }
-#btnCrop[aria-pressed="true"] { color: var(--mint); border-color: var(--mint); }
+#btnCrop[aria-pressed="true"], #btnFitWide[aria-pressed="true"] { color: var(--mint); border-color: var(--mint); }
 #cropOverlay { position: absolute; z-index: 4; overflow: hidden; touch-action: none; cursor: crosshair; }
 #cropSelection { position: absolute; border: 2px dashed white; box-shadow: 0 0 0 2000px #0008; cursor: move; touch-action: none; }
 .crop-handle { position: absolute; width: 22px; height: 22px; background: var(--mint); border: 1px solid #173425; border-radius: 2px; transform: translate(-50%, -50%); }
@@ -246,7 +246,7 @@ SOFTWARE.
         </section>
     </div>
     <div class="right-panel">
-        <div class="preview-heading"><span>Предпросмотр</span><div class="preview-tools"><button type="button" class="btn-option" id="btnCrop" aria-pressed="false" disabled>✂ Ножницы</button><button type="button" class="btn-option" id="btnCropReset" hidden>Сбросить обрезку</button><span class="live-indicator">Изменения в реальном времени</span></div></div>
+        <div class="preview-heading"><span>Предпросмотр</span><div class="preview-tools"><button type="button" class="btn-option" id="btnCrop" aria-pressed="false" disabled>✂ Ножницы</button><button type="button" class="btn-option" id="btnFitWide" aria-pressed="false" disabled>16:9 целиком</button><button type="button" class="btn-option" id="btnCropReset" hidden>Сбросить обрезку</button><span class="live-indicator">Изменения в реальном времени</span></div></div>
         <div class="preview-box">
             <span class="empty-text" id="emptyText">Ваш GIF начинается здесь</span>
             <canvas id="liveCanvas"></canvas>
@@ -258,22 +258,33 @@ SOFTWARE.
         </div>
         <p class="source-info" id="previewInfo" role="status">Загрузите видео или GIF — и начните создавать.</p>
         <div class="options-grid">
-            <span class="btn-option active" id="optConvert">Видео → GIF</span>
+            <span id="optConvert" hidden>Видео → GIF</span>
             <div class="dropdown-wrapper">
-                <button class="btn-option" id="resolutionBtn" style="width: 100%;">Качество: Среднее ▲</button>
-                <div class="dropdown-content" id="resolutionDropdown">
-                    <div data-val="320" data-label="Низкое">Низкое (320 px, 10 FPS)</div>
-                    <div data-val="480" data-label="Среднее">Среднее (480 px, 15 FPS)</div>
-                    <div data-val="720" data-label="Высокое">Высокое (720 px, 20 FPS)</div>
-                    <div data-val="1080" data-label="Максимальное">Максимальное (1080 px, 24 FPS)</div>
+                <button class="btn-option" id="frameRateBtn" style="width:100%;">Плавность: Авто ▲</button>
+                <div class="dropdown-content" id="frameRateDropdown">
+                    <div data-val="0" data-label="Авто">Авто (видео: 12 кадров/с; GIF: исходные)</div>
+                    <div data-val="8" data-label="8 кадров/с">8 кадров/с — меньше вес</div>
+                    <div data-val="12" data-label="12 кадров/с">12 кадров/с — баланс</div>
+                    <div data-val="15" data-label="15 кадров/с">15 кадров/с — плавнее</div>
+                    <div data-val="24" data-label="24 кадра/с">24 кадра/с — больше вес</div>
                 </div>
             </div>
             <div class="dropdown-wrapper">
-                <button class="btn-option" id="compressionBtn" style="width: 100%;">Сжатие: Без сжатия ▲</button>
+                <button class="btn-option" id="resolutionBtn" style="width: 100%;">Размер: 960 px ▲</button>
+                <div class="dropdown-content" id="resolutionDropdown">
+                    <div data-val="320" data-label="320 px">320 px — небольшой</div>
+                    <div data-val="480" data-label="480 px">480 px</div>
+                    <div data-val="720" data-label="720 px">720 px</div>
+                    <div data-val="960" data-label="960 px">960 px — чётче, умеренный размер</div>
+                    <div data-val="1080" data-label="1080 px">1080 px — больше деталей и вес</div>
+                </div>
+            </div>
+            <div class="dropdown-wrapper">
+                <button class="btn-option" id="compressionBtn" style="width: 100%;">Вес: Обычный ▲</button>
                 <div class="dropdown-content" id="compressionDropdown">
-                    <div data-val="0" data-label="Без сжатия">Без сжатия (Высокое качество)</div>
-                    <div data-val="10" data-label="Умеренное">Умеренное сжатие</div>
-                    <div data-val="5" data-label="Сильное">Сильное сжатие</div>
+                    <div data-val="0" data-label="Обычный">Обычный — выбранная плавность</div>
+                    <div data-val="10" data-label="Меньше">Меньше — до 10 кадров/с</div>
+                    <div data-val="5" data-label="Минимальный">Минимальный — до 8 кадров/с</div>
                 </div>
             </div>
         </div>
@@ -306,7 +317,7 @@ const video = $('hiddenVideo'), canvas = $('liveCanvas');
 const ctx = canvas.getContext('2d', {willReadFrequently: true});
 const trimStart = $('trimStart'), trimEnd = $('trimEnd');
 let source = null, gifFrames = [], sourceUrl = '', resultUrl = '', sourceName = '';
-let busy = false, loadVersion = 0, activeTab = 'video', qualityWidth = 480, compression = 0;
+let busy = false, loadVersion = 0, activeTab = 'video', qualityWidth = 960, compression = 0, frameRate = 0, outputAspect = null;
 let previewOrigin = performance.now(), previewOffset = 0, lastPreviewFrame = -1;
 let backgroundColor = null, customBackground = false, qualityPreviewTimer = null, lastVideoPreview = -Infinity;
 let cropRect = null, cropEditing = false, cropDrag = null, cropAspect = 'free';
@@ -317,7 +328,8 @@ function snapshotSettings() {
         cleanEdges: $('cleanGreenEdges').checked, key: backgroundColor ? [...backgroundColor] : null,
         custom: customBackground, keyValue: $('keyColor').value, keyHint: $('keyColorHint').textContent,
         start: Number(trimStart.value), end: Number(trimEnd.value), quality: qualityWidth, compression,
-        crop: cropRect ? {...cropRect} : null, cropAspect,
+        crop: cropRect ? {...cropRect} : null, cropAspect, outputAspect, frameRate,
+        frameRateLabel: $('frameRateBtn').textContent,
         qualityLabel: $('resolutionBtn').textContent, compressionLabel: $('compressionBtn').textContent
     };
 }
@@ -328,7 +340,9 @@ function syncActionButtons() {
     $('autoKeyColor').disabled = busy || !source;
     $('btnCrop').disabled = busy || !source;
     $('btnCropReset').disabled = busy || !source;
-    $('btnCropReset').hidden = !cropRect;
+    $('btnFitWide').disabled = busy || !source;
+    $('btnFitWide').setAttribute('aria-pressed', String(outputAspect === '16:9'));
+    $('btnCropReset').hidden = !cropRect && !outputAspect;
     $('btnCrop').setAttribute('aria-pressed', String(cropEditing));
     $('btnCrop').textContent = cropEditing ? '✓ Готово' : '✂ Ножницы';
     for (const [id, aspect] of [['cropWide','16:9'],['cropSquare','1:1'],['cropFree','free']]) $(id).setAttribute('aria-pressed', String(cropAspect === aspect));
@@ -361,6 +375,8 @@ function restoreAction(direction) {
     trimStart.value = state.start; trimEnd.value = state.end;
     qualityWidth = state.quality; compression = state.compression;
     cropRect = state.crop ? {...state.crop} : null; cropEditing = !!cropRect; cropAspect = state.cropAspect || 'free';
+    outputAspect = state.outputAspect || null; frameRate = state.frameRate || 0;
+    $('frameRateBtn').textContent = state.frameRateLabel || 'Плавность: Авто ▲';
     $('resolutionBtn').textContent = state.qualityLabel; $('compressionBtn').textContent = state.compressionLabel;
     clearResult(); updateTrim(); syncActionButtons();
     if (previousQuality !== qualityWidth || previousCompression !== compression) scheduleQualityPreview();
@@ -382,13 +398,21 @@ function sourceRegion() {
     return cropRect || {x: 0, y: 0, width: source.width, height: source.height};
 }
 function drawRegion(context, image, width, height, region = sourceRegion()) {
-    context.drawImage(image, region.x, region.y, region.width, region.height, 0, 0, width, height);
+    let dw = width, dh = height;
+    if (outputAspect === '16:9') {
+        const scale = Math.min(width/region.width,height/region.height);
+        dw = Math.max(1,Math.round(region.width*scale)); dh = Math.max(1,Math.round(region.height*scale));
+    }
+    context.imageSmoothingEnabled = true; context.imageSmoothingQuality = 'high';
+    context.drawImage(image, region.x, region.y, region.width, region.height, Math.floor((width-dw)/2), Math.floor((height-dh)/2), dw, dh);
 }
 function outputSize() {
     if (!source) return {width: 0, height: 0};
     const region = sourceRegion();
-    const scale = Math.min(1, qualityWidth / Math.max(region.width, region.height));
-    return {width: Math.max(1, Math.round(region.width * scale)), height: Math.max(1, Math.round(region.height * scale))};
+    const baseWidth = outputAspect === '16:9' ? Math.max(region.width,region.height*16/9) : region.width;
+    const baseHeight = outputAspect === '16:9' ? baseWidth*9/16 : region.height;
+    const scale = Math.min(1, qualityWidth / Math.max(baseWidth, baseHeight));
+    return {width: Math.max(1, Math.round(baseWidth * scale)), height: Math.max(1, Math.round(baseHeight * scale))};
 }
 function refreshPreviewSize() {
     if (!source) return;
@@ -398,7 +422,7 @@ function refreshPreviewSize() {
     if (canvas.width !== width) canvas.width = width;
     if (canvas.height !== height) canvas.height = height;
     lastPreviewFrame = -1; lastVideoPreview = -Infinity;
-    $('previewInfo').textContent = `GIF: ${size.width} × ${size.height} пикселей.${cropEditing ? " Выберите 16:9 одним нажатием. Рамку можно перемещать и менять за края." : " После выбора качества будет показан готовый GIF."}`;
+    $('previewInfo').textContent = `GIF: ${size.width} × ${size.height} пикселей.${cropEditing ? " Выберите 16:9 одним нажатием. Рамку можно перемещать и менять за края." : (outputAspect ? " · 16:9, весь кадр с прозрачными полями." : " · Весь выбранный кадр.") + (source.type === "video" ? ` · ${exportFPS()} кадров/с.` : "")}`;
 }
 function updateCropOverlay() {
     const overlay = $('cropOverlay');
@@ -419,6 +443,7 @@ function cropChanged() {
 $('btnCrop').onclick = () => {
     if (!source || busy) return;
     cropEditing = !cropEditing;
+    if (cropEditing) outputAspect = null;
     if (cropEditing && !cropRect) {
         const side = Math.max(1, Math.round(Math.min(source.width,source.height)*.8));
         cropRect = {x: Math.floor((source.width-side)/2), y: Math.floor((source.height-side)/2), width: side, height: side};
@@ -429,7 +454,7 @@ $('btnCrop').onclick = () => {
 };
 $('btnCropReset').onclick = () => {
     if (!source || busy) return;
-    cropRect = null; cropEditing = false; cropAspect = 'free'; cropChanged(); recordAction(); status('Обрезка сброшена.');
+    cropRect = null; cropEditing = false; cropAspect = 'free'; outputAspect = null; cropChanged(); recordAction(); status('Обрезка сброшена.');
 };
 // Anchor fractions: 0 is the left/top edge, .5 is the centre, 1 is right/bottom.
 // Use whole ratio units so the selected source pixels keep exactly 16:9 or 1:1.
@@ -465,6 +490,13 @@ function chooseCropAspect(aspect) {
 $('cropWide').onclick = () => chooseCropAspect('16:9');
 $('cropSquare').onclick = () => chooseCropAspect('1:1');
 $('cropFree').onclick = () => chooseCropAspect('free');
+$('btnFitWide').onclick = () => {
+    if (!source || busy) return;
+    outputAspect = outputAspect === '16:9' ? null : '16:9';
+    cropRect = null; cropEditing = false; cropAspect = 'free';
+    cropChanged(); recordAction();
+    status(outputAspect ? '16:9: всё изображение сохранится целиком. Поля прозрачные, обрезки нет.' : 'Исходные пропорции восстановлены. Весь кадр сохраняется.');
+};
 function cropPoint(event) {
     const bounds = $('cropOverlay').getBoundingClientRect();
     return {x: Math.max(0, Math.min(source.width, Math.round((event.clientX-bounds.left)/bounds.width*source.width))), y: Math.max(0, Math.min(source.height, Math.round((event.clientY-bounds.top)/bounds.height*source.height)))};
@@ -519,7 +551,7 @@ function scheduleQualityPreview() {
     clearTimeout(qualityPreviewTimer);
     if (!source || busy) return;
     refreshPreviewSize();
-    status('Обновление предпросмотра выбранного качества…');
+    status('Обновление GIF с выбранными настройками…');
     qualityPreviewTimer = setTimeout(() => { qualityPreviewTimer = null; if (source && !busy) $('btnProcess').onclick(); }, 400);
 }
 function inferBackground(image) {
@@ -695,7 +727,7 @@ function autoRemoveBackground() {
 }
 $('autoKeyColor').onclick = autoRemoveBackground;
 $('cleanGreenEdges').onchange = () => { clearResult(); status(''); recordAction(); };
-for (const name of ['resolution', 'compression']) {
+for (const name of ['resolution', 'compression', 'frameRate']) {
     const button = $(name + 'Btn'), dropdown = $(name + 'Dropdown');
     button.onclick = event => {
         event.stopPropagation();
@@ -708,8 +740,9 @@ for (const name of ['resolution', 'compression']) {
         const choose = () => {
             if (busy) return;
             if (name === 'resolution') qualityWidth = Number(option.dataset.val);
-            else compression = Number(option.dataset.val);
-            button.textContent = `${name === 'resolution' ? 'Качество' : 'Сжатие'}: ${option.dataset.label} ▲`;
+            else if (name === 'compression') compression = Number(option.dataset.val);
+            else frameRate = Number(option.dataset.val);
+            button.textContent = `${name === 'resolution' ? 'Размер' : name === 'compression' ? 'Вес' : 'Плавность'}: ${option.dataset.label} ▲`;
             dropdown.classList.remove('show'); clearResult(); recordAction(); scheduleQualityPreview();
         };
         option.onclick = choose;
@@ -722,7 +755,7 @@ window.addEventListener('keydown', e => { if (e.key === 'Escape') document.query
 function resetSource() {
     video.pause(); video.removeAttribute('src'); video.load();
     if (sourceUrl) URL.revokeObjectURL(sourceUrl);
-    cropRect = null; cropEditing = false; cropDrag = null; cropAspect = 'free'; $('cropOverlay').hidden = true; $('cropFormats').hidden = true;
+    cropRect = null; cropEditing = false; cropDrag = null; cropAspect = 'free'; outputAspect = null; $('cropOverlay').hidden = true; $('cropFormats').hidden = true;
     sourceUrl = ''; source = null; gifFrames = []; backgroundColor = null; customBackground = false; clearResult();
     $('previewInfo').textContent = 'Предпросмотр появится после загрузки файла.';
     ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -735,9 +768,10 @@ function resetSource() {
 function resetEditor() {
     if (busy) return;
     ++loadVersion; resetSource(); sourceName = '';
-    qualityWidth = 480; compression = 0;
-    $('resolutionBtn').textContent = 'Качество: Среднее ▲';
-    $('compressionBtn').textContent = 'Сжатие: Без сжатия ▲';
+    qualityWidth = 960; compression = 0; frameRate = 0; outputAspect = null;
+    $('frameRateBtn').textContent = 'Плавность: Авто ▲';
+    $('resolutionBtn').textContent = 'Размер: 960 px ▲';
+    $('compressionBtn').textContent = 'Вес: Обычный ▲';
     $('removeBackground').checked = true; $('cleanGreenEdges').checked = true;
     $('tolerance').value = 45; $('tolValue').textContent = '45';
     $('keyColor').value = '#00ff00';
@@ -905,7 +939,7 @@ function drawPreviewFrame(now, force = false) {
             }
         } else if (video.readyState >= 2) {
             if (video.currentTime >= end || video.currentTime < start) video.currentTime = start;
-            const fps = {320:10,480:15,720:20,1080:24}[qualityWidth];
+            const fps = exportFPS();
             if (force || now-lastVideoPreview >= 1000/fps) {
                 ctx.clearRect(0,0,canvas.width,canvas.height);
                 drawRegion(ctx,video,canvas.width,canvas.height,cropEditing ? {x:0,y:0,width:source.width,height:source.height} : sourceRegion());
@@ -932,6 +966,24 @@ function seekVideo(time, media = video) {
         const onSeeked = () => finish(), onError = () => finish(new Error('Ошибка чтения видео.'));
         media.addEventListener('seeked', onSeeked); media.addEventListener('error', onError); media.currentTime = time;
     });
+}
+// Spatial detail and temporal sampling are independent. Weight presets drop
+// temporal samples only; they never weaken palette training or resize the image.
+function exportFPS() {
+    const requested = frameRate || 12;
+    return Math.min(requested, compression === 5 ? 8 : compression === 10 ? 10 : requested);
+}
+function gifExportFrames(start, end) {
+    if (!frameRate && !compression) return gifFrames.filter(f => f.end > start && f.start < end).map(f => ({frame:f,delay:(Math.min(f.end,end)-Math.max(f.start,start))*1000}));
+    const samples = videoExportFrames(start,end,exportFPS());
+    const result = [];
+    for (const sample of samples) {
+        const frame = gifFrames.find(f => sample.time >= f.start && sample.time < f.end) || gifFrames[gifFrames.length-1];
+        const previous = result[result.length-1];
+        if (previous?.frame === frame) previous.delay += sample.delay;
+        else result.push({frame,delay:sample.delay});
+    }
+    return result;
 }
 function videoExportFrames(start, end, fps) {
     const duration = end - start;
@@ -975,9 +1027,9 @@ $('btnProcess').onclick = async () => {
         const raw = document.createElement('canvas'); raw.width = source.width; raw.height = source.height;
         const rc = raw.getContext('2d');
         let frames;
-        if (source.type === 'gif') frames = gifFrames.filter(f => f.end > start && f.start < end).map(f => ({frame: f, delay: (Math.min(f.end, end) - Math.max(f.start, start)) * 1000}));
+        if (source.type === 'gif') frames = gifExportFrames(start,end);
         else {
-            const fps = {320: 10, 480: 15, 720: 20, 1080: 24}[qualityWidth];
+            const fps = exportFPS();
             frames = videoExportFrames(start, end, fps);
         }
         if (source.type === 'video') {
@@ -988,7 +1040,7 @@ $('btnProcess').onclick = async () => {
         }
         workerUrl = URL.createObjectURL(new Blob([GIF_WORKER_SOURCE], {type: 'application/javascript'}));
         worker = new Worker(workerUrl);
-        const quality = compression ? (compression === 5 ? 40 : 25) : ({320:20,480:10,720:5,1080:1}[qualityWidth]);
+        const quality = 1; // Dense palette training at every output size.
         async function prepareFrame(item) {
             oc.clearRect(0, 0, width, height);
             if (item.frame) { rc.putImageData(item.frame.image, 0, 0); drawRegion(oc, raw, width, height); }

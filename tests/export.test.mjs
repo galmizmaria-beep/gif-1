@@ -55,6 +55,23 @@ for (const fps of [10,15,20,24]) {
         assert.equal(schedule[i].delay % 10, 0);
     }
 }
+// Resolution never changes frame rate. Weight presets change cadence, not colours.
+const settings = vm.createContext({frameRate:0,compression:0,qualityWidth:320,gifFrames:[{start:0,end:.08},{start:.08,end:.31},{start:.31,end:1}]});
+vm.runInContext(scripts[2].slice(scripts[2].indexOf('function exportFPS()'),scripts[2].indexOf('// Encode one frame at a time:')),settings);
+for (const width of [320,480,720,960,1080]) {
+    settings.qualityWidth=width;
+    assert.equal(settings.exportFPS(),12);
+}
+assert.equal(settings.gifExportFrames(0,1).length,3,'auto keeps original GIF frames');
+settings.frameRate=24; settings.compression=10;
+assert.equal(settings.exportFPS(),10);
+settings.compression=5;
+assert.equal(settings.exportFPS(),8);
+settings.compression=0; settings.frameRate=12;
+const resampled = settings.gifExportFrames(0,1);
+assert.equal(resampled.reduce((n,f)=>n+f.delay,0),1000);
+assert(resampled.length<=3, 'repeated samples of a GIF frame should merge');
+assert(scripts[2].includes('const quality = 1;'),'all sizes use dense palette training');
 // Opaque magenta must remain opaque, even beside transparent pixels with the same RGB.
 // Unchanging pixels must decode to identical colours as other parts of the frame change.
 const colours = [[255,0,255], [120,180,100], [255,0,0], [0,255,0], [0,0,255]];
@@ -105,13 +122,34 @@ assert(big.data.length > 1, 'test must cover multiple worker pages');
 const bigDecoded = await decode([helpers.encodedFrameBlob(big)]);
 assert.equal(bigDecoded.frames[0].patch.length, 192 * 192 * 4);
 assert(bigDecoded.frames[0].patch.every((v, i) => i % 4 !== 3 || v === 255));
+// Encode a moving test clip twice at the same spatial resolution and palette.
+// Fewer temporal samples reduce bytes without throwing away spatial detail.
+async function cadenceClip(fps) {
+    const schedule = timeline.videoExportFrames(0,1,fps), parts=[];
+    for (let i=0;i<schedule.length;i++) {
+        const data = new Uint8ClampedArray(96*54*4);
+        for (let y=0;y<54;y++) for (let x=0;x<96;x++) {
+            const moving = x>=Math.floor(schedule[i].time*60) && x<Math.floor(schedule[i].time*60)+24 && y>=10 && y<44;
+            data.set([...(moving ? [255,0,0] : [120,180,100]),255],(y*96+x)*4);
+        }
+        parts.push(helpers.encodedFrameBlob(await encode({index:i,last:i===schedule.length-1,width:96,height:54,delay:schedule[i].delay,globalPalette:palette,data})));
+    }
+    const blob=new Blob(parts), decoded=await decode(parts);
+    assert.equal(decoded.frames.length,fps);
+    assert.equal(decoded.frames.reduce((n,f)=>n+f.delay,0),1000);
+    return {bytes:blob.size, decoded};
+}
+const cadence12=await cadenceClip(12),cadence24=await cadenceClip(24);
+assert(cadence12.bytes<cadence24.bytes, '12 FPS test clip should weigh less at equal resolution');
+for (let i=0;i<12;i++) assert.deepEqual(cadence12.decoded.frames[i].patch,cadence24.decoded.frames[i*2].patch,'matching timestamps must have identical spatial detail and colours');
+console.log(`Cadence fixture, same resolution: 12 FPS ${cadence12.bytes} bytes; 24 FPS ${cadence24.bytes} bytes.`);
 // Refreshing an unchanged preview size must not clear its backing canvas.
 let resets = 0, previewWidth = 64, previewHeight = 64;
 const previewCanvas = {
     get width() { return previewWidth; }, set width(v) { resets++; previewWidth = v; },
     get height() { return previewHeight; }, set height(v) { resets++; previewHeight = v; }
 };
-const preview = vm.createContext({source:{width:64,height:64}, qualityWidth:480, cropRect:null, cropEditing:false, canvas:previewCanvas,
+const preview = vm.createContext({source:{width:64,height:64}, qualityWidth:480, cropRect:null, cropEditing:false, outputAspect:null, canvas:previewCanvas,
     $: () => ({textContent:''}), lastPreviewFrame:0, lastVideoPreview:0});
 vm.runInContext(scripts[2].slice(scripts[2].indexOf('function sourceRegion()'), scripts[2].indexOf('function updateCropOverlay()')), preview);
 preview.refreshPreviewSize();
@@ -139,13 +177,28 @@ preview.refreshPreviewSize();
 assert.equal(previewCanvas.height,160, 'finished preview has export proportions');
 preview.cropRect = null;
 assert.deepEqual({...preview.outputSize()}, {width:320,height:213});
+// 16:9 fit retains the entire source rectangle, centres it and adds transparent
+// canvas space instead of stretching or cropping. Preview/export use this same draw.
+preview.source = {width:1080,height:1920};
+preview.outputAspect = '16:9'; preview.qualityWidth = 960;
+assert.deepEqual({...preview.outputSize()}, {width:960,height:540});
+preview.drawRegion({drawImage(...args) { drawn = args; }},'portrait',960,540);
+assert.deepEqual(drawn,['portrait',0,0,1080,1920,328,0,304,540]);
+preview.source = {width:1920,height:1080};
+preview.drawRegion({drawImage(...args) { drawn = args; }},'wide',960,540);
+assert.deepEqual(drawn,['wide',0,0,1920,1080,0,0,960,540]);
+preview.source = {width:640,height:640};
+preview.drawRegion({drawImage(...args) { drawn = args; }},'square',960,540);
+assert.deepEqual(drawn,['square',0,0,640,640,210,0,540,540]);
+preview.outputAspect = null;
+assert.deepEqual({...preview.outputSize()}, {width:640,height:640});
 // Pointer drags must stay within the source, including one-pixel selections.
 const cropElements = new Map();
 const cropElement = id => {
     if (!cropElements.has(id)) cropElements.set(id, {setPointerCapture() {}});
     return cropElements.get(id);
 };
-const crop = vm.createContext({$:cropElement, source:{width:960,height:640}, cropRect:{x:123,y:81,width:400,height:200}, cropEditing:true, cropDrag:null, cropAspect:'free', busy:false, recordAction() {}});
+const crop = vm.createContext({$:cropElement, source:{width:960,height:640}, cropRect:{x:123,y:81,width:400,height:200}, cropEditing:true, cropDrag:null, cropAspect:'free', outputAspect:null, busy:false, recordAction() {}});
 vm.runInContext(scripts[2].slice(scripts[2].indexOf('function updateCropOverlay()'),scripts[2].indexOf('function scheduleQualityPreview()')),crop);
 crop.cropPoint = event => ({x:event.x,y:event.y});
 crop.cropChanged = () => {};
@@ -180,6 +233,14 @@ cropElement('cropOverlay').onpointerdown(pointer(800,540,'se'));
 cropElement('cropOverlay').onpointermove(pointer(900,600));
 assert.equal(crop.cropRect.width*9,crop.cropRect.height*16,'pointer handler preserves the selected ratio');
 cropElement('cropOverlay').onpointerup(pointer(900,600));
+crop.cropChanged = () => {};
+crop.status = () => {};
+cropElement('btnFitWide').onclick();
+assert.equal(crop.cropRect,null);
+assert.equal(crop.cropEditing,false);
+assert.equal(crop.outputAspect,'16:9');
+cropElement('btnFitWide').onclick();
+assert.equal(crop.outputAspect,null);
 assert(scripts[2].includes('drawRegion(oc, raw, width, height)'), 'GIF export uses selection');
 assert(scripts[2].includes('drawRegion(oc, exportVideo, width, height)'), 'video export uses selection');
 // Background processing must preserve original alpha and opaque magenta until encoding.
@@ -192,4 +253,4 @@ assert.deepEqual(Array.from(rgba), [255,0,255,255, 255,0,255,0]);
 const badWorker = {...worker, postMessage() { queueMicrotask(() => events.emit('error', new Error('test'))); }};
 await assert.rejects(helpers.encodeFrame(badWorker, {data:new Uint8ClampedArray(4)}), /Не удалось обработать/);
 assert.equal(events.listenerCount('message'), 0);
-console.log('Passed: script syntax, HTML/TXT sync, exact video FPS and total duration, shared palette, stable colours, opaque magenta, exact alpha, empty transparent frame, disposal, timing, buffer transfer, multi-page GIF, preview canvas preservation, crop bounds and 16:9 presets/resizing, background alpha preservation, worker error cleanup.');
+console.log('Passed: script syntax, HTML/TXT sync, exact video FPS and total duration, shared palette, stable colours, opaque magenta, exact alpha, empty transparent frame, disposal, timing, buffer transfer, multi-page GIF, preview canvas preservation, crop bounds, 16:9 fit without cropping, aspect presets/resizing, independent frame rate, background alpha preservation, worker error cleanup.');
