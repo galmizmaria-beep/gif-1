@@ -71,7 +71,11 @@ input[type="range"]::-moz-range-thumb { width: 11px; height: 11px; border: 3px s
 #btnCrop[aria-pressed="true"] { color: var(--mint); border-color: var(--mint); }
 #cropOverlay { position: absolute; z-index: 4; overflow: hidden; touch-action: none; cursor: crosshair; }
 #cropSelection { position: absolute; border: 2px dashed white; box-shadow: 0 0 0 2000px #0008; cursor: move; touch-action: none; }
-.crop-handle { position: absolute; width: 12px; height: 12px; background: var(--mint); border: 1px solid #173425; border-radius: 2px; transform: translate(-50%, -50%); }
+.crop-handle { position: absolute; width: 22px; height: 22px; background: var(--mint); border: 1px solid #173425; border-radius: 2px; transform: translate(-50%, -50%); }
+#cropFormats { position: absolute; left: 14px; top: 14px; z-index: 5; display: flex; align-items: center; gap: 5px; padding: 6px; border: 1px solid #555e6d; border-radius: 10px; background: #15191ff2; box-shadow: 0 3px 15px #0005; }
+#cropFormats span { padding: 0 6px; font-size: 11px; color: var(--muted); }
+#cropFormats button { min-width: 58px; padding: 7px 10px; }
+#cropFormats button[aria-pressed="true"] { color: #173425; background: var(--mint); border-color: var(--mint); }
 .crop-handle[data-edge="nw"] { left: 0; top: 0; cursor: nwse-resize; }
 .crop-handle[data-edge="n"] { left: 50%; top: 0; cursor: ns-resize; }
 .crop-handle[data-edge="ne"] { left: 100%; top: 0; cursor: nesw-resize; }
@@ -247,6 +251,7 @@ SOFTWARE.
             <span class="empty-text" id="emptyText">Ваш GIF начинается здесь</span>
             <canvas id="liveCanvas"></canvas>
             <img id="finalGif" alt="Готовый GIF">
+            <div id="cropFormats" role="group" aria-label="Формат обрезки" hidden><span>Формат</span><button class="btn-option" type="button" id="cropWide" aria-pressed="false">16:9</button><button class="btn-option" type="button" id="cropSquare" aria-pressed="false">1:1</button><button class="btn-option" type="button" id="cropFree" aria-pressed="true">Свободно</button></div>
             <div id="cropOverlay" hidden><div id="cropSelection" tabindex="0" role="group" aria-label="Область обрезки. Перемещайте стрелками, Shift — шаг 10 пикселей.">
                 <span class="crop-handle" data-edge="nw"></span><span class="crop-handle" data-edge="n"></span><span class="crop-handle" data-edge="ne"></span><span class="crop-handle" data-edge="e"></span><span class="crop-handle" data-edge="se"></span><span class="crop-handle" data-edge="s"></span><span class="crop-handle" data-edge="sw"></span><span class="crop-handle" data-edge="w"></span>
             </div></div>
@@ -304,7 +309,7 @@ let source = null, gifFrames = [], sourceUrl = '', resultUrl = '', sourceName = 
 let busy = false, loadVersion = 0, activeTab = 'video', qualityWidth = 480, compression = 0;
 let previewOrigin = performance.now(), previewOffset = 0, lastPreviewFrame = -1;
 let backgroundColor = null, customBackground = false, qualityPreviewTimer = null, lastVideoPreview = -Infinity;
-let cropRect = null, cropEditing = false, cropDrag = null;
+let cropRect = null, cropEditing = false, cropDrag = null, cropAspect = 'free';
 let actionHistory = [], historyIndex = -1;
 function snapshotSettings() {
     return {
@@ -312,7 +317,7 @@ function snapshotSettings() {
         cleanEdges: $('cleanGreenEdges').checked, key: backgroundColor ? [...backgroundColor] : null,
         custom: customBackground, keyValue: $('keyColor').value, keyHint: $('keyColorHint').textContent,
         start: Number(trimStart.value), end: Number(trimEnd.value), quality: qualityWidth, compression,
-        crop: cropRect ? {...cropRect} : null,
+        crop: cropRect ? {...cropRect} : null, cropAspect,
         qualityLabel: $('resolutionBtn').textContent, compressionLabel: $('compressionBtn').textContent
     };
 }
@@ -326,6 +331,7 @@ function syncActionButtons() {
     $('btnCropReset').hidden = !cropRect;
     $('btnCrop').setAttribute('aria-pressed', String(cropEditing));
     $('btnCrop').textContent = cropEditing ? '✓ Готово' : '✂ Ножницы';
+    for (const [id, aspect] of [['cropWide','16:9'],['cropSquare','1:1'],['cropFree','free']]) $(id).setAttribute('aria-pressed', String(cropAspect === aspect));
     $('tolerance').disabled = busy || !source;
 }
 function recordAction() {
@@ -354,7 +360,7 @@ function restoreAction(direction) {
     $('keyColor').value = state.keyValue; $('keyColorHint').textContent = state.keyHint;
     trimStart.value = state.start; trimEnd.value = state.end;
     qualityWidth = state.quality; compression = state.compression;
-    cropRect = state.crop ? {...state.crop} : null; cropEditing = !!cropRect;
+    cropRect = state.crop ? {...state.crop} : null; cropEditing = !!cropRect; cropAspect = state.cropAspect || 'free';
     $('resolutionBtn').textContent = state.qualityLabel; $('compressionBtn').textContent = state.compressionLabel;
     clearResult(); updateTrim(); syncActionButtons();
     if (previousQuality !== qualityWidth || previousCompression !== compression) scheduleQualityPreview();
@@ -392,11 +398,12 @@ function refreshPreviewSize() {
     if (canvas.width !== width) canvas.width = width;
     if (canvas.height !== height) canvas.height = height;
     lastPreviewFrame = -1; lastVideoPreview = -Infinity;
-    $('previewInfo').textContent = `GIF: ${size.width} × ${size.height} пикселей.${cropEditing ? " Перемещайте рамку и тяните за её края. Сохранится только область внутри." : " После выбора качества будет показан готовый GIF."}`;
+    $('previewInfo').textContent = `GIF: ${size.width} × ${size.height} пикселей.${cropEditing ? " Выберите 16:9 одним нажатием. Рамку можно перемещать и менять за края." : " После выбора качества будет показан готовый GIF."}`;
 }
 function updateCropOverlay() {
     const overlay = $('cropOverlay');
     overlay.hidden = !source || !cropEditing || !!resultUrl;
+    $('cropFormats').hidden = overlay.hidden;
     if (overlay.hidden) return;
     const box = canvas.parentElement.getBoundingClientRect(), bounds = canvas.getBoundingClientRect();
     const zoom = box.width / canvas.parentElement.offsetWidth;
@@ -422,8 +429,42 @@ $('btnCrop').onclick = () => {
 };
 $('btnCropReset').onclick = () => {
     if (!source || busy) return;
-    cropRect = null; cropEditing = false; cropChanged(); recordAction(); status('Обрезка сброшена.');
+    cropRect = null; cropEditing = false; cropAspect = 'free'; cropChanged(); recordAction(); status('Обрезка сброшена.');
 };
+// Anchor fractions: 0 is the left/top edge, .5 is the centre, 1 is right/bottom.
+// Use whole ratio units so the selected source pixels keep exactly 16:9 or 1:1.
+function fixedAspectRect(bounds, anchor, fx, fy, desiredWidth, aspect) {
+    const [uw, uh] = aspect.split(':').map(Number);
+    const maxWidth = fx === 0 ? bounds.width-anchor.x : fx === 1 ? anchor.x : 2*Math.min(anchor.x,bounds.width-anchor.x);
+    const maxHeight = fy === 0 ? bounds.height-anchor.y : fy === 1 ? anchor.y : 2*Math.min(anchor.y,bounds.height-anchor.y);
+    const limit = Math.min(maxWidth/uw, maxHeight/uh);
+    if (limit <= 0) return null;
+    const units = limit >= 1 ? Math.max(1,Math.min(Math.floor(limit),Math.round(desiredWidth/uw))) : limit;
+    const width = Math.max(1,Math.round(units*uw)), height = Math.max(1,Math.round(units*uh));
+    return {x: Math.max(0,Math.min(bounds.width-width,Math.round(anchor.x-fx*width))), y: Math.max(0,Math.min(bounds.height-height,Math.round(anchor.y-fy*height))), width, height};
+}
+function resizeFixedCrop(rect, edge, point, bounds, aspect) {
+    const ratio = aspect === '16:9' ? 16/9 : 1;
+    const fx = edge.includes('w') ? 1 : edge.includes('e') ? 0 : .5;
+    const fy = edge.includes('n') ? 1 : edge.includes('s') ? 0 : .5;
+    const anchor = {x:rect.x+fx*rect.width, y:rect.y+fy*rect.height};
+    // Opposite edges stay anchored; side handles expand symmetrically on the other axis.
+    const width = fx === .5 ? 0 : (point.x-anchor.x)*(fx === 1 ? -1 : 1);
+    const height = fy === .5 ? 0 : (point.y-anchor.y)*(fy === 1 ? -1 : 1);
+    return fixedAspectRect(bounds, anchor, fx, fy, Math.max(width,height*ratio), aspect) || rect;
+}
+function chooseCropAspect(aspect) {
+    if (!source || busy) return;
+    cropAspect = aspect;
+    if (aspect !== 'free') {
+        cropRect = fixedAspectRect(source, {x:source.width/2,y:source.height/2}, .5, .5, source.width, aspect);
+    }
+    cropChanged(); recordAction();
+    status(aspect === 'free' ? 'Свободная рамка: меняйте ширину и высоту независимо.' : `Формат ${aspect} установлен. Перемещайте рамку; при изменении размера пропорции сохранятся.`);
+}
+$('cropWide').onclick = () => chooseCropAspect('16:9');
+$('cropSquare').onclick = () => chooseCropAspect('1:1');
+$('cropFree').onclick = () => chooseCropAspect('free');
 function cropPoint(event) {
     const bounds = $('cropOverlay').getBoundingClientRect();
     return {x: Math.max(0, Math.min(source.width, Math.round((event.clientX-bounds.left)/bounds.width*source.width))), y: Math.max(0, Math.min(source.height, Math.round((event.clientY-bounds.top)/bounds.height*source.height)))};
@@ -451,7 +492,14 @@ $('cropOverlay').onpointermove = event => {
         if (mode.includes('n')) y = Math.min(bottom-1,p.y);
         if (mode.includes('s')) bottom = Math.max(y+1,p.y);
     }
-    cropRect = {x,y,width:right-x,height:bottom-y}; cropChanged();
+    cropRect = {x,y,width:right-x,height:bottom-y};
+    if (cropAspect !== 'free' && mode !== 'move') {
+        if (mode === 'draw') {
+            const ratio = cropAspect === '16:9' ? 16/9 : 1;
+            cropRect = fixedAspectRect(source,a,p.x<a.x ? 1 : 0,p.y<a.y ? 1 : 0,Math.min(Math.abs(p.x-a.x),Math.abs(p.y-a.y)*ratio),cropAspect) || r;
+        } else cropRect = resizeFixedCrop(r,mode,p,source,cropAspect);
+    }
+    cropChanged();
 };
 function finishCropDrag(event) {
     if (!cropDrag || event.pointerId !== cropDrag.id) return;
@@ -674,7 +722,7 @@ window.addEventListener('keydown', e => { if (e.key === 'Escape') document.query
 function resetSource() {
     video.pause(); video.removeAttribute('src'); video.load();
     if (sourceUrl) URL.revokeObjectURL(sourceUrl);
-    cropRect = null; cropEditing = false; cropDrag = null; $('cropOverlay').hidden = true;
+    cropRect = null; cropEditing = false; cropDrag = null; cropAspect = 'free'; $('cropOverlay').hidden = true; $('cropFormats').hidden = true;
     sourceUrl = ''; source = null; gifFrames = []; backgroundColor = null; customBackground = false; clearResult();
     $('previewInfo').textContent = 'Предпросмотр появится после загрузки файла.';
     ctx.clearRect(0, 0, canvas.width, canvas.height);

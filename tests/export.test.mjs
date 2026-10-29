@@ -145,7 +145,7 @@ const cropElement = id => {
     if (!cropElements.has(id)) cropElements.set(id, {setPointerCapture() {}});
     return cropElements.get(id);
 };
-const crop = vm.createContext({$:cropElement, source:{width:960,height:640}, cropRect:{x:123,y:81,width:400,height:200}, cropEditing:true, cropDrag:null, busy:false, recordAction() {}});
+const crop = vm.createContext({$:cropElement, source:{width:960,height:640}, cropRect:{x:123,y:81,width:400,height:200}, cropEditing:true, cropDrag:null, cropAspect:'free', busy:false, recordAction() {}});
 vm.runInContext(scripts[2].slice(scripts[2].indexOf('function updateCropOverlay()'),scripts[2].indexOf('function scheduleQualityPreview()')),crop);
 crop.cropPoint = event => ({x:event.x,y:event.y});
 crop.cropChanged = () => {};
@@ -159,6 +159,27 @@ cropElement('cropOverlay').onpointermove(pointer(960,640));
 assert.deepEqual({...crop.cropRect}, {x:959,y:639,width:1,height:1});
 cropElement('cropOverlay').onpointercancel(pointer(960,640));
 assert.equal(crop.cropDrag,null);
+// A 16:9 preset fills a landscape source, centres inside a portrait source,
+// and keeps the opposite edge anchored for all eight resize handles.
+assert.deepEqual({...crop.fixedAspectRect({width:1920,height:1080},{x:960,y:540},.5,.5,1920,'16:9')}, {x:0,y:0,width:1920,height:1080});
+assert.deepEqual({...crop.fixedAspectRect({width:1080,height:1920},{x:540,y:960},.5,.5,1080,'16:9')}, {x:4,y:659,width:1072,height:603});
+const startRect = {x:160,y:180,width:640,height:360};
+for (const edge of ['nw','n','ne','e','se','s','sw','w']) {
+    for (const point of [{x:0,y:0},{x:960,y:640},{x:450,y:350}]) {
+        const r = crop.resizeFixedCrop(startRect,edge,point,{width:960,height:640},'16:9');
+        assert.equal(r.width*9,r.height*16, `ratio must survive ${edge} resize`);
+        assert(r.x>=0 && r.y>=0 && r.x+r.width<=960 && r.y+r.height<=640);
+        if (edge.includes('w')) assert.equal(r.x+r.width,startRect.x+startRect.width);
+        if (edge.includes('e')) assert.equal(r.x,startRect.x);
+        if (edge.includes('n')) assert.equal(r.y+r.height,startRect.y+startRect.height);
+        if (edge.includes('s')) assert.equal(r.y,startRect.y);
+    }
+}
+crop.cropRect = {...startRect}; crop.cropAspect = '16:9';
+cropElement('cropOverlay').onpointerdown(pointer(800,540,'se'));
+cropElement('cropOverlay').onpointermove(pointer(900,600));
+assert.equal(crop.cropRect.width*9,crop.cropRect.height*16,'pointer handler preserves the selected ratio');
+cropElement('cropOverlay').onpointerup(pointer(900,600));
 assert(scripts[2].includes('drawRegion(oc, raw, width, height)'), 'GIF export uses selection');
 assert(scripts[2].includes('drawRegion(oc, exportVideo, width, height)'), 'video export uses selection');
 // Background processing must preserve original alpha and opaque magenta until encoding.
@@ -171,4 +192,4 @@ assert.deepEqual(Array.from(rgba), [255,0,255,255, 255,0,255,0]);
 const badWorker = {...worker, postMessage() { queueMicrotask(() => events.emit('error', new Error('test'))); }};
 await assert.rejects(helpers.encodeFrame(badWorker, {data:new Uint8ClampedArray(4)}), /Не удалось обработать/);
 assert.equal(events.listenerCount('message'), 0);
-console.log('Passed: script syntax, HTML/TXT sync, exact video FPS and total duration, shared palette, stable colours, opaque magenta, exact alpha, empty transparent frame, disposal, timing, buffer transfer, multi-page GIF, preview canvas preservation, background alpha preservation, worker error cleanup.');
+console.log('Passed: script syntax, HTML/TXT sync, exact video FPS and total duration, shared palette, stable colours, opaque magenta, exact alpha, empty transparent frame, disposal, timing, buffer transfer, multi-page GIF, preview canvas preservation, crop bounds and 16:9 presets/resizing, background alpha preservation, worker error cleanup.');
